@@ -1,15 +1,30 @@
 #!/usr/bin/env bash
 set -euo pipefail
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 
-check_prereqs
-OUTPUT_FILE="$OUTPUT_DIR/clusteroperators-$TIMESTAMP.csv"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./common.sh
+source "$SCRIPT_DIR/common.sh"
 
-echo 'name,version,available,progressing,degraded,upgradeable' > "$OUTPUT_FILE"
+: "${CLUSTER_NAME_SAFE:?CLUSTER_NAME_SAFE is not set}"
+: "${CLUSTER_NAME:?CLUSTER_NAME is not set}"
+: "${CLUSTER_CONTEXT:?CLUSTER_CONTEXT is not set}"
+: "${CLUSTER_SERVER:?CLUSTER_SERVER is not set}"
+: "${OUTPUT_DIR:?OUTPUT_DIR is not set}"
+: "${TIMESTAMP:?TIMESTAMP is not set}"
 
-oc get clusteroperators -o json | jq -r '
+OUTPUT_FILE="$OUTPUT_DIR/clusteroperators-${CLUSTER_NAME_SAFE}-$TIMESTAMP.csv"
+
+echo "cluster_name,cluster_context,cluster_server,name,version,available,progressing,degraded,upgradeable" > "$OUTPUT_FILE"
+
+oc get clusteroperators -o json | jq -r \
+  --arg cluster_name "$CLUSTER_NAME" \
+  --arg cluster_context "$CLUSTER_CONTEXT" \
+  --arg cluster_server "$CLUSTER_SERVER" '
   .items[] |
   [
+    $cluster_name,
+    $cluster_context,
+    $cluster_server,
     (.metadata.name // ""),
     (.status.versions[0].version // ""),
     ((.status.conditions[]? | select(.type=="Available") | .status) // ""),
@@ -19,4 +34,4 @@ oc get clusteroperators -o json | jq -r '
   ] | @csv
 ' >> "$OUTPUT_FILE"
 
-announce_output "$OUTPUT_FILE"
+echo "Created: $OUTPUT_FILE"
