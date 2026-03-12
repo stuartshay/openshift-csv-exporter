@@ -1,21 +1,37 @@
 #!/usr/bin/env bash
 set -euo pipefail
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 
-check_prereqs
-OUTPUT_FILE="$OUTPUT_DIR/oauth-cluster-$TIMESTAMP.csv"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./common.sh
+source "$SCRIPT_DIR/common.sh"
 
-echo 'name,identityProviders_count,tokenConfig_accessTokenMaxAgeSeconds,templates_error,templates_login,templates_providerSelection' > "$OUTPUT_FILE"
+: "${CLUSTER_NAME_SAFE:?CLUSTER_NAME_SAFE is not set}"
+: "${CLUSTER_NAME:?CLUSTER_NAME is not set}"
+: "${CLUSTER_CONTEXT:?CLUSTER_CONTEXT is not set}"
+: "${CLUSTER_SERVER:?CLUSTER_SERVER is not set}"
+: "${OUTPUT_DIR:?OUTPUT_DIR is not set}"
+: "${TIMESTAMP:?TIMESTAMP is not set}"
 
-oc get oauth cluster -o json | jq -r '
+OUTPUT_FILE="$OUTPUT_DIR/oauth-cluster-${CLUSTER_NAME_SAFE}-$TIMESTAMP.csv"
+
+echo "cluster_name,cluster_context,cluster_server,name,identity_providers_count,access_token_max_age_seconds,grant_config_method,template_login,template_provider_selection,template_error" > "$OUTPUT_FILE"
+
+oc get oauth cluster -o json | jq -r \
+  --arg cluster_name "$CLUSTER_NAME" \
+  --arg cluster_context "$CLUSTER_CONTEXT" \
+  --arg cluster_server "$CLUSTER_SERVER" '
   [
+    $cluster_name,
+    $cluster_context,
+    $cluster_server,
     (.metadata.name // ""),
     ((.spec.identityProviders // []) | length),
     (.spec.tokenConfig.accessTokenMaxAgeSeconds // ""),
-    (.spec.templates.error // ""),
-    (.spec.templates.login // ""),
-    (.spec.templates.providerSelection // "")
+    (.spec.grantConfig.method // ""),
+    (.spec.templates.login.name // ""),
+    (.spec.templates.providerSelection.name // ""),
+    (.spec.templates.error.name // "")
   ] | @csv
 ' >> "$OUTPUT_FILE"
 
-announce_output "$OUTPUT_FILE"
+echo "Created: $OUTPUT_FILE"
