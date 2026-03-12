@@ -2,12 +2,16 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=./common.sh
 source "$SCRIPT_DIR/common.sh"
+
+: "${CLUSTER_NAME_SAFE:?CLUSTER_NAME_SAFE is not set}"
+: "${CLUSTER_NAME:?CLUSTER_NAME is not set}"
+: "${CLUSTER_CONTEXT:?CLUSTER_CONTEXT is not set}"
+: "${CLUSTER_SERVER:?CLUSTER_SERVER is not set}"
 
 OUTPUT_FILE="$OUTPUT_DIR/clusterversion-${CLUSTER_NAME_SAFE}-$TIMESTAMP.csv"
 
-echo "cluster_name,cluster_context,cluster_server,name,clusterID,desired_version,history_state,history_version,available,progressing,failing,observed_generation" > "$OUTPUT_FILE"
+echo "cluster_name,cluster_context,cluster_server,name,cluster_id,desired_version,history_state,history_version,available,progressing,failing,observed_generation" > "$OUTPUT_FILE"
 
 oc get clusterversion version -o json | jq -r \
   --arg cluster_name "$CLUSTER_NAME" \

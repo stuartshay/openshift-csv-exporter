@@ -2,9 +2,20 @@
 set -euo pipefail
 
 OUTPUT_DIR="${OUTPUT_DIR:-./output}"
-TIMESTAMP="$(date +"%Y-%m-%d-%H-%M")"
+TIMESTAMP="${TIMESTAMP:-$(date +"%Y-%m-%d-%H-%M")}"
+DEBUG="${DEBUG:-false}"
 
 mkdir -p "$OUTPUT_DIR"
+
+log() {
+  echo "[common] $*"
+}
+
+debug() {
+  if [ "$DEBUG" = "true" ]; then
+    echo "[debug] $*"
+  fi
+}
 
 require_command() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -29,13 +40,25 @@ detect_cluster_info() {
 
   if [ -n "${CLUSTER_CONTEXT:-}" ]; then
     CLUSTER_NAME="$CLUSTER_CONTEXT"
-  elif [ -n "$server_host" ]; then
+  elif [ -n "${server_host:-}" ]; then
     CLUSTER_NAME="$server_host"
   else
     CLUSTER_NAME="unknown-cluster"
   fi
 
   CLUSTER_NAME_SAFE="$(printf '%s' "$CLUSTER_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9._-]/-/g')"
+
+  export CLUSTER_CONTEXT
+  export CLUSTER_SERVER
+  export CLUSTER_NAME
+  export CLUSTER_NAME_SAFE
+
+  debug "CLUSTER_CONTEXT=$CLUSTER_CONTEXT"
+  debug "CLUSTER_SERVER=$CLUSTER_SERVER"
+  debug "CLUSTER_NAME=$CLUSTER_NAME"
+  debug "CLUSTER_NAME_SAFE=$CLUSTER_NAME_SAFE"
+  debug "OUTPUT_DIR=$OUTPUT_DIR"
+  debug "TIMESTAMP=$TIMESTAMP"
 }
 
 require_command oc
