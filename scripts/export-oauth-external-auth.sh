@@ -14,7 +14,7 @@ source "$SCRIPT_DIR/common.sh"
 
 OUTPUT_FILE="$OUTPUT_DIR/oauth-external-auth-${CLUSTER_NAME_SAFE}-$TIMESTAMP.csv"
 
-echo "cluster_name,cluster_context,cluster_server,external_auth_enforced,kubeadmin_removed,identity_providers_count,idp_name,idp_type" > "$OUTPUT_FILE"
+echo "cluster_name,cluster_context,cluster_server,external_auth_enforced,kubeadmin_removed,identity_providers_count,idp_name,idp_type,idp_mapping_method,idp_issuer,idp_client_id,access_token_max_age_seconds" > "$OUTPUT_FILE"
 
 # Check if kubeadmin secret has been removed (indicates external auth is enforced)
 KUBEADMIN_REMOVED="false"
@@ -28,6 +28,7 @@ oc get oauth cluster -o json | jq -r \
   --arg cluster_server "$CLUSTER_SERVER" \
   --arg kubeadmin_removed "$KUBEADMIN_REMOVED" '
   ((.spec.identityProviders // []) | length) as $idp_count |
+  (.spec.tokenConfig.accessTokenMaxAgeSeconds // "") as $token_max_age |
   (if $idp_count > 0 and $kubeadmin_removed == "true" then "true" else "false" end) as $enforced |
   if $idp_count == 0 then
     [
@@ -38,7 +39,11 @@ oc get oauth cluster -o json | jq -r \
       $kubeadmin_removed,
       $idp_count,
       "",
-      ""
+      "",
+      "",
+      "",
+      "",
+      $token_max_age
     ] | @csv
   else
     (.spec.identityProviders // [])[] |
@@ -50,7 +55,11 @@ oc get oauth cluster -o json | jq -r \
       $kubeadmin_removed,
       $idp_count,
       (.name // ""),
-      (.type // "")
+      (.type // ""),
+      (.mappingMethod // ""),
+      (.openID.issuer // .ldap.url // .htpasswd // .basicAuth.url // .github.hostname // ""),
+      (.openID.clientID // .github.clientID // ""),
+      $token_max_age
     ] | @csv
   end
 ' >> "$OUTPUT_FILE"
