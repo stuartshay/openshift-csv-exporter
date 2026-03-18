@@ -8,6 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 "$SCRIPT_DIR/scripts/export-clusterversion.sh"
 "$SCRIPT_DIR/scripts/export-clusteroperators.sh"
 "$SCRIPT_DIR/scripts/export-oauth-cluster.sh"
+"$SCRIPT_DIR/scripts/export-oauth-external-auth.sh"
 "$SCRIPT_DIR/scripts/export-infrastructure-cluster.sh"
 "$SCRIPT_DIR/scripts/export-scc-privileged.sh"
 
