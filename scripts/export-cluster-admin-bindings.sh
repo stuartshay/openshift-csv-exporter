@@ -12,15 +12,17 @@ source "$SCRIPT_DIR/common.sh"
 : "${OUTPUT_DIR:?OUTPUT_DIR is not set}"
 : "${TIMESTAMP:?TIMESTAMP is not set}"
 
-OUTPUT_FILE="$OUTPUT_DIR/clusterrolebindings-${CLUSTER_NAME_SAFE}-$TIMESTAMP.csv"
+OUTPUT_FILE="$OUTPUT_DIR/cluster-admin-bindings-${CLUSTER_NAME_SAFE}-$TIMESTAMP.csv"
 
-echo "cluster_name,cluster_context,cluster_server,binding_name,role_ref_kind,role_ref_name,subject_kind,subject_name,subject_namespace" > "$OUTPUT_FILE"
+echo "cluster_name,cluster_context,cluster_server,binding_name,role_ref_name,subject_kind,subject_name,subject_namespace,creation_timestamp" > "$OUTPUT_FILE"
 
 oc get clusterrolebindings -o json | jq -r \
   --arg cluster_name "$CLUSTER_NAME" \
   --arg cluster_context "$CLUSTER_CONTEXT" \
   --arg cluster_server "$CLUSTER_SERVER" '
-  .items[] as $crb
+  .items[]
+  | select(.roleRef.name == "cluster-admin")
+  | . as $crb
   | if (($crb.subjects // []) | length) > 0 then
       $crb.subjects[] |
       [
@@ -28,11 +30,11 @@ oc get clusterrolebindings -o json | jq -r \
         $cluster_context,
         $cluster_server,
         ($crb.metadata.name // ""),
-        ($crb.roleRef.kind // ""),
         ($crb.roleRef.name // ""),
         (.kind // ""),
         (.name // ""),
-        (.namespace // "")
+        (.namespace // ""),
+        ($crb.metadata.creationTimestamp // "")
       ] | @csv
     else
       [
@@ -40,11 +42,11 @@ oc get clusterrolebindings -o json | jq -r \
         $cluster_context,
         $cluster_server,
         ($crb.metadata.name // ""),
-        ($crb.roleRef.kind // ""),
         ($crb.roleRef.name // ""),
         "",
         "",
-        ""
+        "",
+        ($crb.metadata.creationTimestamp // "")
       ] | @csv
     end
 ' >> "$OUTPUT_FILE"

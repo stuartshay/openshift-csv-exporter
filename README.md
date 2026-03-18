@@ -16,17 +16,23 @@ Example:
 
 ## Included reports
 
-- `clusterrolebindings`
-- `clusterrolebinding self-provisioners`
-- `clusterversion`
-- `clusteroperators`
-- `oauth cluster`
-- `infrastructure cluster`
-- `scc privileged`
+- `clusterrolebindings` — all ClusterRoleBinding subjects
+- `clusterrolebinding self-provisioners` — self-provisioner binding
+- `cluster-admin-bindings` — subjects with cluster-admin access
+- `clusterroles` — ClusterRole permission rules
+- `clusterversion` — cluster version and update status
+- `clusteroperators` — cluster operator health
+- `oauth cluster` — OAuth configuration summary
+- `oauth external auth` — external authentication enforcement
+- `infrastructure cluster` — platform and topology
+- `apiserver console access` — API server and console security config
+- `scc privileged` — privileged SecurityContextConstraints
+
+See [`scripts/README.md`](scripts/README.md) for full column details and usage.
 
 ## Requirements
 
-- Bash
+- Bash (or Git Bash on Windows)
 - `oc` CLI already authenticated to the target cluster
 - `jq`
 
@@ -39,11 +45,10 @@ jq --version
 
 ## Quick start
 
-Make the scripts executable:
+Run the setup script to install dev tools and set permissions:
 
 ```bash
-chmod +x scripts/*.sh
-chmod +x run-all.sh
+./setup.sh
 ```
 
 Run all reports:
