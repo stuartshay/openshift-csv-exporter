@@ -30,35 +30,36 @@ echo "cluster_name,cluster_context,cluster_server,kubeadmin_exists,namespace,sec
 NOW_EPOCH=$(date +%s)
 
 for NS in $CRITICAL_NS; do
-  oc get secrets -n "$NS" -o json 2>/dev/null | jq -r \
-    --arg cluster_name "$CLUSTER_NAME" \
-    --arg cluster_context "$CLUSTER_CONTEXT" \
-    --arg cluster_server "$CLUSTER_SERVER" \
-    --arg kubeadmin_exists "$KUBEADMIN_EXISTS" \
-    --arg ns "$NS" \
-    --arg now_epoch "$NOW_EPOCH" '
-    .items[] |
-    [
-      $cluster_name,
-      $cluster_context,
-      $cluster_server,
-      $kubeadmin_exists,
-      $ns,
-      (.metadata.name // ""),
-      (.type // ""),
-      (.metadata.creationTimestamp // ""),
-      (
-        (.metadata.creationTimestamp // "") |
-        if . != "" then
-          # Parse ISO 8601 date using strptime then compute age in days
-          (. | split(".")[0] | sub("Z$"; "") | strptime("%Y-%m-%dT%H:%M:%S") | mktime) as $created |
-          (($now_epoch | tonumber) - $created) / 86400 | floor
-        else ""
-        end
-      ),
-      (.metadata.annotations["kubernetes.io/service-account.name"] // "")
-    ] | @csv
-  ' >> "$OUTPUT_FILE"
+  oc get secrets -n "$NS" -o json 2>/dev/null | jq -c '.items[]' | while IFS= read -r item; do
+    CREATED=$(echo "$item" | jq -r '.metadata.creationTimestamp // ""')
+    AGE_DAYS=""
+    if [ -n "$CREATED" ]; then
+      CREATED_EPOCH=$(date -d "$CREATED" +%s 2>/dev/null || echo "")
+      if [ -n "$CREATED_EPOCH" ]; then
+        AGE_DAYS=$(( (NOW_EPOCH - CREATED_EPOCH) / 86400 ))
+      fi
+    fi
+    echo "$item" | jq -r \
+      --arg cluster_name "$CLUSTER_NAME" \
+      --arg cluster_context "$CLUSTER_CONTEXT" \
+      --arg cluster_server "$CLUSTER_SERVER" \
+      --arg kubeadmin_exists "$KUBEADMIN_EXISTS" \
+      --arg ns "$NS" \
+      --arg age_days "$AGE_DAYS" '
+      [
+        $cluster_name,
+        $cluster_context,
+        $cluster_server,
+        $kubeadmin_exists,
+        $ns,
+        (.metadata.name // ""),
+        (.type // ""),
+        (.metadata.creationTimestamp // ""),
+        $age_days,
+        (.metadata.annotations["kubernetes.io/service-account.name"] // "")
+      ] | @csv
+    '
+  done >> "$OUTPUT_FILE"
 done
 
 echo "Created: $OUTPUT_FILE"
