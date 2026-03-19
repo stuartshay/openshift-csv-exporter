@@ -62,6 +62,31 @@ This project contains Bash scripts that export OpenShift cluster configuration t
 - Multi-valued fields use `;` as the delimiter within a CSV cell
 - Print `echo "Created: $OUTPUT_FILE"` at the end of each script
 
+## jq Compatibility (jq 1.6 / Git Bash)
+
+Scripts must run on **jq 1.6 under Git Bash on Windows** where many date/time builtins are missing.
+
+- **Do NOT use** `now`, `fromdateiso8601`, `todateiso8601`, `strptime`, `mktime`, `strftime`, or `gmtime` inside jq expressions — these are not available on all jq 1.6 builds
+- **Do** perform date/time calculations in shell using `date -d` and pass results into jq via `--arg`
+- When computing values that require date math (e.g., age in days), iterate items with `jq -c` in a `while read` loop, compute in shell, then pass back via `--arg`
+
+Example pattern for age calculation:
+
+```bash
+NOW_EPOCH=$(date +%s)
+oc get secrets -n "$NS" -o json | jq -c '.items[]' | while IFS= read -r item; do
+  CREATED=$(echo "$item" | jq -r '.metadata.creationTimestamp // ""')
+  AGE_DAYS=""
+  if [ -n "$CREATED" ]; then
+    CREATED_EPOCH=$(date -d "$CREATED" +%s 2>/dev/null || echo "")
+    if [ -n "$CREATED_EPOCH" ]; then
+      AGE_DAYS=$(( (NOW_EPOCH - CREATED_EPOCH) / 86400 ))
+    fi
+  fi
+  echo "$item" | jq -r --arg age_days "$AGE_DAYS" '...'
+done
+```
+
 ## Shell Style
 
 - Use `#!/usr/bin/env bash` shebang
