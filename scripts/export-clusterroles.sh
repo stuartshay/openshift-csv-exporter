@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Description: Exports all ClusterRoles with their permission rules
+# Audit Area:  Granular Role-Based Access Controls
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

@@ -28,8 +28,22 @@ Example:
 - `apiserver console access` — API server and console security config
 - `scc privileged` — privileged SecurityContextConstraints
 - `worker node auth` — worker node authentication and authorization enforcement
+- `credential management` — cluster admin and infrastructure credential audit
 
 See [`scripts/README.md`](scripts/README.md) for full column details and usage.
+
+## Audit Coverage Matrix
+
+| Audit Area | Script(s) |
+|---|---|
+| **External Authentication Enforced** | `export-oauth-external-auth.sh`, `export-oauth-cluster.sh` |
+| **Granular Role-Based Access Controls** | `export-clusterroles.sh`, `export-clusterrolebindings.sh`, `export-clusterrolebinding-self-provisioners.sh` |
+| **API & Console Access Restriction** | `export-apiserver-console-access.sh`, `export-cluster-admin-bindings.sh` |
+| **Privileged Container Controls** | `export-scc-privileged.sh` |
+| **Worker Node AuthN/AuthZ** | `export-worker-node-auth.sh` |
+| **Cluster Admin/SRE Credential Management** | `export-credential-management.sh`, `export-oauth-external-auth.sh` |
+| **Cluster Version & Health** | `export-clusterversion.sh`, `export-clusteroperators.sh` |
+| **Infrastructure & Platform** | `export-infrastructure-cluster.sh` |
 
 ## Requirements
 

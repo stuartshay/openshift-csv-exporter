@@ -20,12 +20,21 @@ This project contains Bash scripts that export OpenShift cluster configuration t
 ### 2. `README.md` (root — quick-start guide)
 
 - Update the **Included reports** list to reflect all current scripts
+- Update the **Audit Coverage Matrix** table to stay in sync with `scripts/README.md`
 
 ### 3. `run-all.sh`
 
 - Add or remove the script entry so it runs as part of the full export
 
 ## Script Conventions
+
+- Every script begins with a header comment block immediately after the shebang:
+
+  ```bash
+  #!/usr/bin/env bash
+  # Description: <one-line summary of what the script exports>
+  # Audit Area:  <matching audit area from the Audit Coverage Matrix>
+  ```
 
 - Every script starts with `set -euo pipefail`
 - Every script sources `common.sh` via:

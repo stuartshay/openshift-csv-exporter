@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Description: Exports worker node authentication and authorization enforcement status
+# Audit Area:  Worker Node AuthN/AuthZ
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
+# Description: Exports cluster version and update status
+# Audit Area:  Cluster Version & Health
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./common.sh
 source "$SCRIPT_DIR/common.sh"
 
 : "${CLUSTER_NAME_SAFE:?CLUSTER_NAME_SAFE is not set}"

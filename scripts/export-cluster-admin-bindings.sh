@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Description: Exports ClusterRoleBindings that grant cluster-admin access
+# Audit Area:  API & Console Access Restriction
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Description: Reports whether external authentication is enforced
+# Audit Area:  External Authentication Enforced
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

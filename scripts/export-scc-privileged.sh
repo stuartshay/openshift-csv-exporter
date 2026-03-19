@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Description: Exports the privileged SecurityContextConstraints configuration
+# Audit Area:  Privileged Container Controls
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

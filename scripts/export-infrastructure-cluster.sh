@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Description: Exports cluster infrastructure details (platform, topology, API endpoints)
+# Audit Area:  Infrastructure & Platform
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Description: Exports status of all cluster operators
+# Audit Area:  Cluster Version & Health
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

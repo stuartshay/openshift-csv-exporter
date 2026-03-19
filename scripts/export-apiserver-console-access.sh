@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Description: Exports API server and console access restriction configuration
+# Audit Area:  API & Console Access Restriction
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

@@ -388,6 +388,37 @@ One row per node. Columns `kubelet_config_count`, `anonymous_auth`, and `authori
 
 ---
 
+### export-credential-management.sh
+
+Exports secrets from critical cluster namespaces to audit credential management. Checks whether the kubeadmin secret still exists and enumerates secrets in `kube-system`, `openshift-config`, and `openshift-config-managed` to verify that infrastructure provider keys and admin credentials are properly managed.
+
+```bash
+./scripts/export-credential-management.sh
+```
+
+**OC commands:**
+
+- `oc get secret kubeadmin -n kube-system`
+- `oc get secrets -n kube-system -o json`
+- `oc get secrets -n openshift-config -o json`
+- `oc get secrets -n openshift-config-managed -o json`
+
+**Output file:** `credential-management-<cluster>-<timestamp>.csv`
+
+| Column | Description |
+|---|---|
+| `kubeadmin_exists` | `true` if kubeadmin secret is still present |
+| `namespace` | Namespace where the secret resides |
+| `secret_name` | Secret resource name |
+| `secret_type` | Secret type (Opaque, kubernetes.io/tls, etc.) |
+| `creation_timestamp` | When the secret was created |
+| `age_days` | Age of the secret in days |
+| `service_account` | Associated service account (if token secret) |
+
+One row per secret across the three critical namespaces.
+
+---
+
 ## Usage Examples
 
 Run all reports at once:
@@ -423,5 +454,6 @@ DEBUG=true ./scripts/export-oauth-external-auth.sh
 | **API & Console Access Restriction** | `export-apiserver-console-access.sh`, `export-cluster-admin-bindings.sh` |
 | **Privileged Container Controls** | `export-scc-privileged.sh` |
 | **Worker Node AuthN/AuthZ** | `export-worker-node-auth.sh` |
+| **Cluster Admin/SRE Credential Management** | `export-credential-management.sh`, `export-oauth-external-auth.sh` |
 | **Cluster Version & Health** | `export-clusterversion.sh`, `export-clusteroperators.sh` |
 | **Infrastructure & Platform** | `export-infrastructure-cluster.sh` |
