@@ -27,6 +27,7 @@ Example:
 - `infrastructure cluster` — platform and topology
 - `apiserver console access` — API server and console security config
 - `scc privileged` — privileged SecurityContextConstraints
+- `worker node auth` — worker node authentication and authorization enforcement
 
 See [`scripts/README.md`](scripts/README.md) for full column details and usage.
 

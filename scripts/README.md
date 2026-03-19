@@ -351,6 +351,40 @@ Exports the `privileged` SecurityContextConstraints configuration.
 
 ---
 
+### export-worker-node-auth.sh
+
+Exports worker node authentication and authorization enforcement status. Verifies that each node has its desired machine config applied and checks for any KubeletConfig overrides to default authentication/authorization settings.
+
+```bash
+./scripts/export-worker-node-auth.sh
+```
+
+**OC commands:**
+- `oc get kubeletconfig -o json`
+- `oc get nodes -o json`
+
+**Output file:** `worker-node-auth-<cluster>-<timestamp>.csv`
+
+| Column | Description |
+|---|---|
+| `node_name` | Node hostname |
+| `node_roles` | Node roles (`;`-delimited: worker, master, infra) |
+| `kubelet_version` | Kubelet version running on the node |
+| `ready_status` | Node Ready condition (True, False, Unknown) |
+| `internal_ip` | Node internal IP address |
+| `creation_timestamp` | When the node was created |
+| `machine_config_state` | MachineConfig rollout state (Done, Working, Degraded) |
+| `current_config` | Currently applied MachineConfig name |
+| `desired_config` | Desired MachineConfig name |
+| `configs_match` | `true` if current config matches desired config |
+| `kubelet_config_count` | Number of KubeletConfig override CRs |
+| `anonymous_auth` | Anonymous authentication override (`default` if not overridden) |
+| `authorization_mode` | Authorization mode override (`default` if not overridden) |
+
+One row per node. Columns `kubelet_config_count`, `anonymous_auth`, and `authorization_mode` reflect cluster-level KubeletConfig overrides. OpenShift defaults enforce webhook authentication and Webhook authorization mode.
+
+---
+
 ## Usage Examples
 
 Run all reports at once:
@@ -385,5 +419,6 @@ DEBUG=true ./scripts/export-oauth-external-auth.sh
 | **Granular Role-Based Access Controls** | `export-clusterroles.sh`, `export-clusterrolebindings.sh`, `export-clusterrolebinding-self-provisioners.sh` |
 | **API & Console Access Restriction** | `export-apiserver-console-access.sh`, `export-cluster-admin-bindings.sh` |
 | **Privileged Container Controls** | `export-scc-privileged.sh` |
+| **Worker Node AuthN/AuthZ** | `export-worker-node-auth.sh` |
 | **Cluster Version & Health** | `export-clusterversion.sh`, `export-clusteroperators.sh` |
 | **Infrastructure & Platform** | `export-infrastructure-cluster.sh` |
