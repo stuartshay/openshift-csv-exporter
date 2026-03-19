@@ -29,11 +29,14 @@ This project contains Bash scripts that export OpenShift cluster configuration t
 
 - Every script starts with `set -euo pipefail`
 - Every script sources `common.sh` via:
+
   ```bash
   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   source "$SCRIPT_DIR/common.sh"
   ```
+
 - Every script validates required variables:
+
   ```bash
   : "${CLUSTER_NAME_SAFE:?CLUSTER_NAME_SAFE is not set}"
   : "${CLUSTER_NAME:?CLUSTER_NAME is not set}"
@@ -42,6 +45,7 @@ This project contains Bash scripts that export OpenShift cluster configuration t
   : "${OUTPUT_DIR:?OUTPUT_DIR is not set}"
   : "${TIMESTAMP:?TIMESTAMP is not set}"
   ```
+
 - Output filenames follow the pattern: `<report-name>-${CLUSTER_NAME_SAFE}-$TIMESTAMP.csv`
 - Every CSV starts with `cluster_name,cluster_context,cluster_server` as the first three columns
 - Use `jq -r` with `--arg` for cluster variables; never interpolate shell variables inside jq expressions

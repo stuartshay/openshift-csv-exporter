@@ -177,6 +177,7 @@ Reports whether external authentication is enforced. Checks both identity provid
 ```
 
 **OC commands:**
+
 - `oc get oauth cluster -o json`
 - `oc get secret kubeadmin -n kube-system`
 
@@ -303,6 +304,7 @@ Exports API server and console access restriction configuration. Answers: **are 
 ```
 
 **OC commands:**
+
 - `oc get apiserver cluster -o json`
 - `oc get consoles.config.openshift.io cluster`
 - `oc get clusterrolebindings -o json`
@@ -360,6 +362,7 @@ Exports worker node authentication and authorization enforcement status. Verifie
 ```
 
 **OC commands:**
+
 - `oc get kubeletconfig -o json`
 - `oc get nodes -o json`
 

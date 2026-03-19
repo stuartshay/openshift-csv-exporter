@@ -15,3 +15,9 @@ repos:
         files: \.sh$
       - id: check-shebang-scripts-are-executable
         files: \.sh$
+
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.44.0
+    hooks:
+      - id: markdownlint
+        args: ["--fix"]

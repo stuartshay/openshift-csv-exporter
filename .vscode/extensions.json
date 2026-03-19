@@ -1,0 +1,8 @@
+{
+  "recommendations": [
+    "timonwong.shellcheck",
+    "foxundermoon.shell-format",
+    "davidanson.vscode-markdownlint",
+    "redhat.vscode-yaml"
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "files.watcherExclude": {
+    "**/output/**": true,
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/node_modules/**": true
+  },
+  "files.exclude": {
+    "**/.git": true
+  },
+  "shellcheck.enable": true,
+  "shellcheck.executablePath": "shellcheck",
+  "files.associations": {
+    "*.sh": "shellscript"
+  }
+}
