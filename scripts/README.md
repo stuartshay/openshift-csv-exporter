@@ -450,6 +450,33 @@ One summary row per cluster. A valid OpenShift distribution will show a recogniz
 
 ---
 
+### export-policy-as-code.sh
+
+Exports OPA Gatekeeper policy-as-code enforcement status, constraint templates, and active constraints.
+
+**OC commands used:**
+
+- `oc get namespace openshift-gatekeeper-system` / `oc get namespace gatekeeper-system`
+- `oc get constrainttemplates -o json`
+- `oc get <constraint-kind> -o json` (for each template)
+
+**Output file:** `policy-as-code-<cluster>-<timestamp>.csv`
+
+| Column | Description |
+|---|---|
+| `gatekeeper_installed` | `true` if Gatekeeper namespace exists, `false` otherwise |
+| `gatekeeper_namespace` | Detected Gatekeeper namespace (openshift-gatekeeper-system or gatekeeper-system) |
+| `constraint_template` | ConstraintTemplate name defining the policy type |
+| `constraint_name` | Constraint resource name (instance of a template) |
+| `enforcement_action` | Enforcement action: deny, warn, or dryrun |
+| `total_violations` | Number of current violations for the constraint |
+| `match_kinds` | Semicolon-delimited Kubernetes resource kinds the constraint applies to |
+| `match_namespaces` | Semicolon-delimited namespaces the constraint is scoped to |
+
+One row per constraint. If Gatekeeper is not installed, a single row is written with `gatekeeper_installed=false`. If templates exist but have no constraints, a row per template is written with empty constraint fields.
+
+---
+
 ## Usage Examples
 
 Run all reports at once:
@@ -489,3 +516,4 @@ DEBUG=true ./scripts/export-oauth-external-auth.sh
 | **Cluster Version & Health** | `export-clusterversion.sh`, `export-clusteroperators.sh` |
 | **Infrastructure & Platform** | `export-infrastructure-cluster.sh` |
 | **Platform Usage Guardrails** | `export-platform-guardrails.sh` |
+| **Policy-as-Code Enforcement** | `export-policy-as-code.sh` |
