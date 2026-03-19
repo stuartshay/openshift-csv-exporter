@@ -29,6 +29,7 @@ Example:
 - `scc privileged` — privileged SecurityContextConstraints
 - `worker node auth` — worker node authentication and authorization enforcement
 - `credential management` — cluster admin and infrastructure credential audit
+- `platform guardrails` — platform distribution validation and misconfigured component detection
 
 See [`scripts/README.md`](scripts/README.md) for full column details and usage.
 
@@ -44,6 +45,7 @@ See [`scripts/README.md`](scripts/README.md) for full column details and usage.
 | **Cluster Admin/SRE Credential Management** | `export-credential-management.sh`, `export-oauth-external-auth.sh` |
 | **Cluster Version & Health** | `export-clusterversion.sh`, `export-clusteroperators.sh` |
 | **Infrastructure & Platform** | `export-infrastructure-cluster.sh` |
+| **Platform Usage Guardrails** | `export-platform-guardrails.sh` |
 
 ## Requirements
 

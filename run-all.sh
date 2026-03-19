@@ -16,5 +16,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 "$SCRIPT_DIR/scripts/export-scc-privileged.sh"
 "$SCRIPT_DIR/scripts/export-worker-node-auth.sh"
 "$SCRIPT_DIR/scripts/export-credential-management.sh"
+"$SCRIPT_DIR/scripts/export-platform-guardrails.sh"
 
 echo "All reports completed."

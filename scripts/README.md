@@ -419,6 +419,37 @@ One row per secret across the three critical namespaces.
 
 ---
 
+### export-platform-guardrails.sh
+
+Exports platform guardrails data to detect unapproved distributions and misconfigured cluster components.
+
+**OC commands used:**
+
+- `oc get clusterversion version -o json`
+- `oc get infrastructure cluster -o json`
+- `oc get clusteroperators -o json`
+
+**Output file:** `platform-guardrails-<cluster>-<timestamp>.csv`
+
+| Column | Description |
+|---|---|
+| `ocp_version` | Current desired OpenShift version |
+| `cluster_id` | Unique cluster identifier from ClusterVersion spec |
+| `update_channel` | Configured update channel (e.g., stable-4.x, fast-4.x) |
+| `update_state` | State of the most recent version history entry |
+| `platform` | Infrastructure platform type (AWS, Azure, None, etc.) |
+| `control_plane_topology` | Control plane topology (HighlyAvailable, SingleReplica) |
+| `infrastructure_topology` | Infrastructure topology (HighlyAvailable, SingleReplica) |
+| `total_operators` | Total number of cluster operators |
+| `degraded_count` | Number of operators in Degraded state |
+| `unavailable_count` | Number of operators in Unavailable state |
+| `degraded_operators` | Semicolon-delimited list of degraded operator names |
+| `unavailable_operators` | Semicolon-delimited list of unavailable operator names |
+
+One summary row per cluster. A valid OpenShift distribution will show a recognized update channel (stable-X.Y, fast-X.Y, eus-X.Y, candidate-X.Y), a populated cluster ID, and zero degraded/unavailable operators.
+
+---
+
 ## Usage Examples
 
 Run all reports at once:
@@ -457,3 +488,4 @@ DEBUG=true ./scripts/export-oauth-external-auth.sh
 | **Cluster Admin/SRE Credential Management** | `export-credential-management.sh`, `export-oauth-external-auth.sh` |
 | **Cluster Version & Health** | `export-clusterversion.sh`, `export-clusteroperators.sh` |
 | **Infrastructure & Platform** | `export-infrastructure-cluster.sh` |
+| **Platform Usage Guardrails** | `export-platform-guardrails.sh` |
