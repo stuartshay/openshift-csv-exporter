@@ -27,15 +27,16 @@ CRITICAL_NS="kube-system openshift-config openshift-config-managed"
 
 echo "cluster_name,cluster_context,cluster_server,kubeadmin_exists,namespace,secret_name,secret_type,creation_timestamp,age_days,service_account" > "$OUTPUT_FILE"
 
+NOW_EPOCH=$(date +%s)
+
 for NS in $CRITICAL_NS; do
   oc get secrets -n "$NS" -o json 2>/dev/null | jq -r \
     --arg cluster_name "$CLUSTER_NAME" \
     --arg cluster_context "$CLUSTER_CONTEXT" \
     --arg cluster_server "$CLUSTER_SERVER" \
     --arg kubeadmin_exists "$KUBEADMIN_EXISTS" \
-    --arg ns "$NS" '
-    def age_days:
-      (now - (. | fromdateiso8601)) / 86400 | floor;
+    --arg ns "$NS" \
+    --arg now_epoch "$NOW_EPOCH" '
     .items[] |
     [
       $cluster_name,
@@ -46,7 +47,15 @@ for NS in $CRITICAL_NS; do
       (.metadata.name // ""),
       (.type // ""),
       (.metadata.creationTimestamp // ""),
-      ((.metadata.creationTimestamp // "" | if . != "" then age_days else "" end) // ""),
+      (
+        (.metadata.creationTimestamp // "") |
+        if . != "" then
+          # Parse ISO 8601 date using strptime then compute age in days
+          (. | split(".")[0] | sub("Z$"; "") | strptime("%Y-%m-%dT%H:%M:%S") | mktime) as $created |
+          (($now_epoch | tonumber) - $created) / 86400 | floor
+        else ""
+        end
+      ),
       (.metadata.annotations["kubernetes.io/service-account.name"] // "")
     ] | @csv
   ' >> "$OUTPUT_FILE"
