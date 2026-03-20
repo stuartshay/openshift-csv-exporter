@@ -3,7 +3,8 @@
 # Usage:       ./scripts/debug-cluster-diagnostics.sh
 #              ./scripts/debug-cluster-diagnostics.sh --check-processes
 #              ./scripts/debug-cluster-diagnostics.sh --api-requests
-set -euo pipefail
+# NOTE: no set -e — diagnostics must continue through failures
+set -uo pipefail
 
 BOLD=$'\033[1m'
 GREEN=$'\033[32m'
@@ -79,11 +80,18 @@ SERVER=$(oc whoami --show-server 2>/dev/null || echo "unknown")
 echo "  Context:  $CONTEXT"
 echo "  Server:   $SERVER"
 
-# API server health
-if HEALTH=$(oc get --raw /healthz 2>&1); then
-  ok "API server health: $HEALTH"
-else
-  fail "API server unreachable: $HEALTH"
+# API server health — try multiple endpoints (older clusters may not expose all)
+HEALTH_OK=false
+for ENDPOINT in /healthz /readyz /livez /api; do
+  if HEALTH=$(oc get --raw "$ENDPOINT" 2>&1 | tr -d '\r'); then
+    ok "API server health ($ENDPOINT): $HEALTH"
+    HEALTH_OK=true
+    break
+  fi
+done
+if [ "$HEALTH_OK" = false ]; then
+  fail "API health check failed on /healthz, /readyz, /livez, /api"
+  warn "Last error: $HEALTH"
 fi
 
 # Latency test — time a lightweight API call
@@ -104,13 +112,18 @@ fi
 # ─────────────────────────────────────────────────────────────────────────────
 hdr "Cluster version"
 
-if CV_JSON=$(oc get clusterversion version -o json 2>&1); then
-  CV_VER=$(echo "$CV_JSON" | jq -r '.status.desired.version // "unknown"')
-  CV_CHANNEL=$(echo "$CV_JSON" | jq -r '.spec.channel // "unknown"')
-  CV_STATE=$(echo "$CV_JSON" | jq -r '.status.history[0].state // "unknown"')
-  echo "  Version:  $CV_VER"
-  echo "  Channel:  $CV_CHANNEL"
-  echo "  State:    $CV_STATE"
+if CV_JSON=$(oc get clusterversion version -o json 2>&1 | tr -d '\r'); then
+  if echo "$CV_JSON" | jq empty 2>/dev/null; then
+    CV_VER=$(echo "$CV_JSON" | jq -r '.status.desired.version // "unknown"')
+    CV_CHANNEL=$(echo "$CV_JSON" | jq -r '.spec.channel // "unknown"')
+    CV_STATE=$(echo "$CV_JSON" | jq -r '.status.history[0].state // "unknown"')
+    echo "  Version:  $CV_VER"
+    echo "  Channel:  $CV_CHANNEL"
+    echo "  State:    $CV_STATE"
+  else
+    fail "clusterversion returned invalid JSON"
+    warn "Raw output (first 200 chars): ${CV_JSON:0:200}"
+  fi
 else
   warn "Could not fetch clusterversion: $CV_JSON"
 fi
@@ -121,11 +134,15 @@ fi
 hdr "Resource counts"
 
 for RESOURCE in nodes clusteroperators machineconfigpools; do
-  if COUNT_JSON=$(oc get "$RESOURCE" -o json 2>&1); then
-    COUNT=$(echo "$COUNT_JSON" | jq '.items | length' | tr -d '\r')
-    ok "$RESOURCE: $COUNT"
+  if COUNT_JSON=$(oc get "$RESOURCE" -o json 2>&1 | tr -d '\r'); then
+    if echo "$COUNT_JSON" | jq empty 2>/dev/null; then
+      COUNT=$(echo "$COUNT_JSON" | jq '.items | length' | tr -d '\r')
+      ok "$RESOURCE: $COUNT"
+    else
+      fail "$RESOURCE: invalid JSON response"
+    fi
   else
-    fail "$RESOURCE: FAILED — $COUNT_JSON"
+    fail "$RESOURCE: FAILED — ${COUNT_JSON:0:200}"
   fi
 done
 
@@ -169,10 +186,10 @@ fi
 # ─────────────────────────────────────────────────────────────────────────────
 hdr "Node processing estimate"
 
-NODE_COUNT=$(oc get nodes -o json 2>/dev/null | jq '.items | length' | tr -d '\r' || echo 0)
+NODE_COUNT=$(oc get nodes -o json 2>/dev/null | tr -d '\r' | jq '.items | length' 2>/dev/null | tr -d '\r' || echo 0)
 if [ "$NODE_COUNT" -gt 0 ]; then
   # Benchmark: process one node through jq to estimate per-node time
-  SAMPLE=$(oc get nodes -o json 2>/dev/null | jq -c '.items[0] | {
+  SAMPLE=$(oc get nodes -o json 2>/dev/null | tr -d '\r' | jq -c '.items[0] | {
     name: .metadata.name,
     kubelet: .status.nodeInfo.kubeletVersion,
     os: .status.nodeInfo.osImage,
