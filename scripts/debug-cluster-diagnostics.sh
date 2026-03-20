@@ -112,7 +112,8 @@ fi
 # ─────────────────────────────────────────────────────────────────────────────
 hdr "Cluster version"
 
-if CV_JSON=$(oc get clusterversion version -o json 2>&1 | tr -d '\r'); then
+CV_ERR=$(mktemp)
+if CV_JSON=$(oc get clusterversion version -o json 2>"$CV_ERR" | tr -d '\r'); then
   if echo "$CV_JSON" | jq empty 2>/dev/null; then
     CV_VER=$(echo "$CV_JSON" | jq -r '.status.desired.version // "unknown"')
     CV_CHANNEL=$(echo "$CV_JSON" | jq -r '.spec.channel // "unknown"')
@@ -123,28 +124,35 @@ if CV_JSON=$(oc get clusterversion version -o json 2>&1 | tr -d '\r'); then
   else
     fail "clusterversion returned invalid JSON"
     warn "Raw output (first 200 chars): ${CV_JSON:0:200}"
+    [ -s "$CV_ERR" ] && warn "stderr: $(cat "$CV_ERR")"
   fi
 else
-  warn "Could not fetch clusterversion: $CV_JSON"
+  warn "Could not fetch clusterversion"
+  [ -s "$CV_ERR" ] && warn "stderr: $(cat "$CV_ERR")"
 fi
+rm -f "$CV_ERR"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Resource counts (quick sanity check)
 # ─────────────────────────────────────────────────────────────────────────────
 hdr "Resource counts"
 
+RC_ERR=$(mktemp)
 for RESOURCE in nodes clusteroperators machineconfigpools; do
-  if COUNT_JSON=$(oc get "$RESOURCE" -o json 2>&1 | tr -d '\r'); then
+  if COUNT_JSON=$(oc get "$RESOURCE" -o json 2>"$RC_ERR" | tr -d '\r'); then
     if echo "$COUNT_JSON" | jq empty 2>/dev/null; then
       COUNT=$(echo "$COUNT_JSON" | jq '.items | length' | tr -d '\r')
       ok "$RESOURCE: $COUNT"
     else
       fail "$RESOURCE: invalid JSON response"
+      [ -s "$RC_ERR" ] && warn "  stderr: $(cat "$RC_ERR")"
     fi
   else
-    fail "$RESOURCE: FAILED — ${COUNT_JSON:0:200}"
+    fail "$RESOURCE: FAILED"
+    [ -s "$RC_ERR" ] && warn "  stderr: $(cat "$RC_ERR")"
   fi
 done
+rm -f "$RC_ERR"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # RBAC / permissions quick check
