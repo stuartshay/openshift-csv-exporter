@@ -16,6 +16,7 @@ source "$SCRIPT_DIR/common.sh"
 
 OUTPUT_FILE="$OUTPUT_DIR/patch-lifecycle-${CLUSTER_NAME_SAFE}-$TIMESTAMP.csv"
 
+SCRIPT_START_SECONDS=$SECONDS
 NOW_EPOCH=$(date +%s)
 
 echo "[patch-lifecycle] Starting export at $(date)"
@@ -221,5 +222,7 @@ echo "$NODES_JSON" | jq -c '.items[] | {
 } >> "$OUTPUT_FILE"
 
 echo "[patch-lifecycle] Nodes done."
-echo "[patch-lifecycle] Completed at $(date)"
+
+ELAPSED=$(( SECONDS - SCRIPT_START_SECONDS ))
+echo "[patch-lifecycle] Completed at $(date) — total time: ${ELAPSED}s"
 echo "Created: $OUTPUT_FILE"

@@ -62,6 +62,28 @@ This project contains Bash scripts that export OpenShift cluster configuration t
 - Multi-valued fields use `;` as the delimiter within a CSV cell
 - Print `echo "Created: $OUTPUT_FILE"` at the end of each script
 
+## Console Debug Logging
+
+Every script must include console debug logging so operators can monitor progress and diagnose slow or stalled runs.
+
+- Derive a short label from the script filename (e.g., `patch-lifecycle`, `control-plane-protections`)
+- Print progress messages to stderr-safe stdout prefixed with `[<label>]`:
+  - **Start**: `echo "[<label>] Starting export at $(date)"` after variable validation
+  - **Per-section**: `echo "[<label>] Fetching <resource>..."` before each `oc` call, and `echo "[<label>] Processing N <resource>..."` before loops
+  - **Per-item** (for loops over large sets like nodes): `echo "[<label>]   Item X/N: <name>"` inside the loop
+  - **Section done**: `echo "[<label>] <Section> done."` after each section completes
+  - **Finish with timing**: Print total wall-clock execution time at the end
+- Capture `SECONDS` at script start (after sourcing `common.sh`) and compute elapsed time at the end:
+
+  ```bash
+  SCRIPT_START_SECONDS=$SECONDS
+  # ... script body ...
+  ELAPSED=$(( SECONDS - SCRIPT_START_SECONDS ))
+  echo "[<label>] Completed at $(date) — total time: ${ELAPSED}s"
+  ```
+
+- The final line must still be `echo "Created: $OUTPUT_FILE"`
+
 ## jq Compatibility (jq 1.6 / Git Bash)
 
 Scripts must run on **jq 1.6 under Git Bash on Windows** where many date/time builtins are missing.
