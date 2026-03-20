@@ -166,7 +166,7 @@ CHECKS=(
   "get machineconfigpools"
   "get clusterrolebindings"
   "get secrets -n openshift-etcd"
-  "get oauth cluster"
+  "get oauths.config.openshift.io"
 )
 
 FAILED_CHECKS=()
@@ -201,22 +201,27 @@ if [ ${#FAILED_CHECKS[@]} -gt 0 ]; then
     echo "    Groups: (cannot list groups)"
   fi
 
-  # Show clusterrolebindings that include this user
+  # Collect user's group memberships into an array for CRB matching
+  IFS=$'\n' read -r -d '' -a USER_GROUP_ARRAY <<< "$USER_GROUPS" || true
+
+  # Show clusterrolebindings that include this user or any of their groups
   echo ""
   echo "  ${BOLD}Your cluster role bindings:${RESET}"
   if CRB_JSON=$(oc get clusterrolebindings -o json 2>/dev/null | tr -d '\r'); then
-    BINDINGS=$(echo "$CRB_JSON" | jq -r --arg u "$OC_USER" '
+    # Build a jq array of the user's groups for matching
+    GROUP_JSON=$(printf '%s\n' "${USER_GROUP_ARRAY[@]}" | jq -R . | jq -s .)
+    BINDINGS=$(echo "$CRB_JSON" | jq -r --arg u "$OC_USER" --argjson groups "$GROUP_JSON" '
       .items[] |
       select(
         (.subjects[]? | select(.kind == "User" and .name == $u)) or
-        (.subjects[]? | select(.kind == "Group" and (.name == "system:cluster-admins" or .name == "cluster-admin")))
+        (.subjects[]? | select(.kind == "Group" and (.name as $g | $groups | index($g))))
       ) |
       "    \(.metadata.name) → \(.roleRef.name)"
     ' 2>/dev/null)
     if [ -n "$BINDINGS" ]; then
       echo "$BINDINGS"
     else
-      echo "    (no cluster-level bindings found for $OC_USER)"
+      echo "    (no cluster-level bindings found for $OC_USER or their groups)"
     fi
   else
     echo "    (cannot list clusterrolebindings)"
