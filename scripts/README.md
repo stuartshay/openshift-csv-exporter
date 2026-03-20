@@ -565,6 +565,50 @@ Exports control plane protection status to verify that etcd is protected and acc
 
 ---
 
+### export-patch-lifecycle.sh
+
+Exports patch and version lifecycle data to track whether cluster and image versions are current and updates are enforced. Covers the OpenShift cluster version, available updates, update history, ClusterOperator versions, MachineConfigPool rollout status, and per-node OS/kubelet/container-runtime versions.
+
+```bash
+./scripts/export-patch-lifecycle.sh
+```
+
+**OC commands used:**
+
+- `oc get clusterversion version -o json`
+- `oc get clusteroperators -o json`
+- `oc get machineconfigpools -o json`
+- `oc get nodes -o json`
+
+**Output file:** `patch-lifecycle-<cluster>-<timestamp>.csv`
+
+| Column | Description |
+|---|---|
+| `check_category` | Area being checked: `cluster_version`, `update_history`, `operator_version`, `machineconfig_pool`, `node_version` |
+| `resource_name` | Resource identifier (ClusterVersion name, operator name, MCP name, node name) |
+| `current_version` | Currently running version / config |
+| `desired_version` | Desired / target version / config |
+| `versions_match` | `true` if current matches desired |
+| `update_channel` | Configured update channel (e.g., stable-4.x) — cluster version rows only |
+| `available_updates` | Semicolon-delimited list of available update versions |
+| `update_state` | State: Completed, Partial, Healthy, Degraded, Updated, Updating |
+| `age_days` | Age in days (cluster install, node creation) |
+| `details` | Key=value pairs with additional context |
+
+**Check categories:**
+
+| check_category | What it tracks |
+|---|---|
+| `cluster_version` | Current OCP version, update channel, how many updates are available |
+| `update_history` | Each version the cluster has been updated through, with completion age |
+| `operator_version` | Per-operator version and health (degraded, available, upgradeable) |
+| `machineconfig_pool` | MCP rollout status — total/ready/updated/degraded machine counts, paused state |
+| `node_version` | Per-node kubelet version, OS image, kernel, container runtime, MachineConfig match |
+
+An up-to-date cluster will show: update channel set, `available_updates` count of 0 (or low), all operators healthy and upgradeable, all MCPs fully updated with 0 degraded, and all nodes matching their desired MachineConfig.
+
+---
+
 ## Usage Examples
 
 Run all reports at once:
@@ -607,3 +651,4 @@ DEBUG=true ./scripts/export-oauth-external-auth.sh
 | **Policy-as-Code Enforcement** | `export-policy-as-code.sh` |
 | **CI/CD Pipeline Enforcement** | `export-cicd-pipeline-enforcement.sh` |
 | **Control Plane Protections** | `export-control-plane-protections.sh` |
+| **Patch & Version Lifecycle Management** | `export-patch-lifecycle.sh` |
