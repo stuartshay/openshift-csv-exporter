@@ -161,13 +161,88 @@ CHECKS=(
   "get oauth cluster"
 )
 
+FAILED_CHECKS=()
 for CHECK in "${CHECKS[@]}"; do
   if oc auth can-i $CHECK >/dev/null 2>&1; then
     ok "can $CHECK"
   else
     fail "CANNOT $CHECK"
+    FAILED_CHECKS+=("$CHECK")
   fi
 done
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Deep diagnostic for any failed permissions
+# ─────────────────────────────────────────────────────────────────────────────
+if [ ${#FAILED_CHECKS[@]} -gt 0 ]; then
+  hdr "Permission failure diagnostics"
+
+  # Show the user's identity and group memberships
+  echo "  ${BOLD}Your identity:${RESET}"
+  OC_USER=$(oc whoami 2>/dev/null || echo "unknown")
+  echo "    User:   $OC_USER"
+
+  # Try to get groups — may fail without permission
+  if USER_GROUPS=$(oc get groups -o json 2>/dev/null | tr -d '\r' | jq -r --arg u "$OC_USER" '.items[] | select(.users[]? == $u) | .metadata.name' 2>/dev/null); then
+    if [ -n "$USER_GROUPS" ]; then
+      echo "    Groups: $USER_GROUPS"
+    else
+      echo "    Groups: (none found, or user not in any group)"
+    fi
+  else
+    echo "    Groups: (cannot list groups)"
+  fi
+
+  # Show clusterrolebindings that include this user
+  echo ""
+  echo "  ${BOLD}Your cluster role bindings:${RESET}"
+  if CRB_JSON=$(oc get clusterrolebindings -o json 2>/dev/null | tr -d '\r'); then
+    BINDINGS=$(echo "$CRB_JSON" | jq -r --arg u "$OC_USER" '
+      .items[] |
+      select(
+        (.subjects[]? | select(.kind == "User" and .name == $u)) or
+        (.subjects[]? | select(.kind == "Group" and (.name == "system:cluster-admins" or .name == "cluster-admin")))
+      ) |
+      "    \(.metadata.name) → \(.roleRef.name)"
+    ' 2>/dev/null)
+    if [ -n "$BINDINGS" ]; then
+      echo "$BINDINGS"
+    else
+      echo "    (no cluster-level bindings found for $OC_USER)"
+    fi
+  else
+    echo "    (cannot list clusterrolebindings)"
+  fi
+
+  # Detailed check for each failed permission
+  for FCHECK in "${FAILED_CHECKS[@]}"; do
+    echo ""
+    echo "  ${BOLD}Diagnosing: $FCHECK${RESET}"
+
+    # Show the specific error message
+    ERR=$(oc auth can-i $FCHECK 2>&1 || true)
+    echo "    can-i result: $ERR"
+
+    # Check if the API resource exists at all
+    RESOURCE_WORD=$(echo "$FCHECK" | awk '{print $2}')
+    if oc api-resources 2>/dev/null | grep -qi "\\b${RESOURCE_WORD}\\b"; then
+      ok "  API resource '$RESOURCE_WORD' exists on this cluster"
+    else
+      fail "  API resource '$RESOURCE_WORD' NOT found — may not be available on this cluster version"
+    fi
+
+    # Try the actual command to show the real error
+    ERR2=$(oc $FCHECK 2>&1 || true)
+    echo "    actual error: ${ERR2:0:300}"
+  done
+
+  echo ""
+  echo "  ${BOLD}Remediation:${RESET}"
+  echo "    To grant read access, a cluster-admin can run:"
+  echo "      oc adm policy add-cluster-role-to-user cluster-reader $OC_USER"
+  echo "    Or for full admin:"
+  echo "      oc adm policy add-cluster-role-to-user cluster-admin $OC_USER"
+fi
 
 # ─────────────────────────────────────────────────────────────────────────────
 # --api-requests: show top API request counts (optional)
