@@ -4,6 +4,12 @@
 
 This project contains Bash scripts that export OpenShift cluster configuration to timestamped CSV files for security auditing. Each script lives in `scripts/`, sources `scripts/common.sh`, and writes output to `output/`.
 
+## Target Platform
+
+- **OpenShift version**: 4.18.x (baseline: 4.18.28) across all clusters
+- All `oc` API resources and fields referenced in scripts are assumed to exist on OCP 4.18+
+- When adding new scripts, use OCP 4.18 API availability as the baseline — do not use APIs removed before 4.18 or only available in 4.19+
+
 ## Documentation Rules
 
 **When adding, removing, or modifying any export script in `scripts/`**, you MUST update both README files to stay in sync:
