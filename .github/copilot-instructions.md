@@ -90,6 +90,25 @@ Every script must include console debug logging so operators can monitor progres
 
 - The final line must still be `echo "Created: $OUTPUT_FILE"`
 
+## Critical Error Console Formatting
+
+Critical errors (permission denied, missing resources, API failures that cause a script to skip its export) must be printed in **red** using ANSI escape codes so they stand out in the console.
+
+- Define color variables at the top of each script (after sourcing `common.sh`):
+
+  ```bash
+  RED='\033[0;31m'
+  NC='\033[0m' # No Color
+  ```
+
+- Use `echo -e` with `${RED}...${NC}` for all critical error messages:
+
+  ```bash
+  echo -e "${RED}[<label>] ERROR: Permission denied — cannot read <resource>${NC}"
+  ```
+
+- When a script must skip its export due to a critical error, print the error in red, include a remediation hint, write a header-only CSV, and `exit 0` (so `run-all.sh` continues)
+
 ## jq Compatibility (jq 1.6 / Git Bash)
 
 Scripts must run on **jq 1.6 under Git Bash on Windows** where many date/time builtins are missing.
