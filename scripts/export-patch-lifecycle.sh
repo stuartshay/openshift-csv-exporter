@@ -28,7 +28,11 @@ echo "cluster_name,cluster_context,cluster_server,check_category,resource_name,c
 # 1) Cluster Version — current OCP version, channel, available updates
 # =============================================================================
 echo "[patch-lifecycle] Fetching clusterversion..."
-CV_JSON=$(oc get clusterversion version -o json 2>/dev/null || echo '{}')
+if ! CV_JSON=$(oc get clusterversion version -o json 2>&1); then
+  echo "[patch-lifecycle] WARNING: oc get clusterversion failed:" >&2
+  echo "$CV_JSON" >&2
+  CV_JSON='{}'
+fi
 echo "[patch-lifecycle] Clusterversion fetched."
 
 CURRENT_VERSION=$(echo "$CV_JSON" | jq -r '.status.desired.version // ""')
@@ -62,7 +66,7 @@ jq -rn \
 ' >> "$OUTPUT_FILE"
 
 # Update history — each version that was applied (single jq pass, no per-item loop)
-HIST_COUNT=$(echo "$CV_JSON" | jq '[.status.history // [] | .[]] | length')
+HIST_COUNT=$(echo "$CV_JSON" | jq '[.status.history // [] | .[]] | length' | tr -d '\r')
 echo "[patch-lifecycle] Processing $HIST_COUNT update history entries..."
 
 echo "$CV_JSON" | jq -c '.status.history // [] | .[]' | while IFS= read -r entry; do
@@ -92,9 +96,16 @@ echo "[patch-lifecycle] Update history done."
 # 2) ClusterOperator versions — each operator and its current version
 # =============================================================================
 echo "[patch-lifecycle] Fetching clusteroperators..."
-CO_JSON=$(oc get clusteroperators -o json 2>/dev/null || echo '{"items":[]}')
-CO_COUNT=$(echo "$CO_JSON" | jq '.items | length')
+if ! CO_JSON=$(oc get clusteroperators -o json 2>&1); then
+  echo "[patch-lifecycle] WARNING: oc get clusteroperators failed:" >&2
+  echo "$CO_JSON" >&2
+  CO_JSON='{"items":[]}'
+fi
+CO_COUNT=$(echo "$CO_JSON" | jq '.items | length' | tr -d '\r')
 echo "[patch-lifecycle] Processing $CO_COUNT clusteroperators..."
+if [ "$CO_COUNT" -eq 0 ]; then
+  echo "[patch-lifecycle] WARNING: 0 clusteroperators found — possible auth or permission issue"
+fi
 
 echo "$CO_JSON" | jq -r \
   --arg cn "$CLUSTER_NAME" --arg cc "$CLUSTER_CONTEXT" --arg cs "$CLUSTER_SERVER" '
@@ -124,9 +135,16 @@ echo "[patch-lifecycle] ClusterOperators done."
 # 3) MachineConfigPool rollout status — are nodes up to date with config?
 # =============================================================================
 echo "[patch-lifecycle] Fetching machineconfigpools..."
-MCP_JSON=$(oc get machineconfigpools -o json 2>/dev/null || echo '{"items":[]}')
-MCP_COUNT=$(echo "$MCP_JSON" | jq '.items | length')
+if ! MCP_JSON=$(oc get machineconfigpools -o json 2>&1); then
+  echo "[patch-lifecycle] WARNING: oc get machineconfigpools failed:" >&2
+  echo "$MCP_JSON" >&2
+  MCP_JSON='{"items":[]}'
+fi
+MCP_COUNT=$(echo "$MCP_JSON" | jq '.items | length' | tr -d '\r')
 echo "[patch-lifecycle] Processing $MCP_COUNT machineconfigpools..."
+if [ "$MCP_COUNT" -eq 0 ]; then
+  echo "[patch-lifecycle] WARNING: 0 machineconfigpools found — possible auth or permission issue"
+fi
 
 echo "$MCP_JSON" | jq -r \
   --arg cn "$CLUSTER_NAME" --arg cc "$CLUSTER_CONTEXT" --arg cs "$CLUSTER_SERVER" '
@@ -161,9 +179,16 @@ echo "[patch-lifecycle] MachineConfigPools done."
 # 4) Node OS and kubelet versions — per-node version tracking
 # =============================================================================
 echo "[patch-lifecycle] Fetching nodes..."
-NODES_JSON=$(oc get nodes -o json 2>/dev/null || echo '{"items":[]}')
-NODE_COUNT=$(echo "$NODES_JSON" | jq '.items | length')
+if ! NODES_JSON=$(oc get nodes -o json 2>&1); then
+  echo "[patch-lifecycle] WARNING: oc get nodes failed:" >&2
+  echo "$NODES_JSON" >&2
+  NODES_JSON='{"items":[]}'
+fi
+NODE_COUNT=$(echo "$NODES_JSON" | jq '.items | length' | tr -d '\r')
 echo "[patch-lifecycle] Processing $NODE_COUNT nodes..."
+if [ "$NODE_COUNT" -eq 0 ]; then
+  echo "[patch-lifecycle] WARNING: 0 nodes found — possible auth or permission issue"
+fi
 
 # Pre-extract all node data in a single jq pass to avoid per-node jq calls
 echo "$NODES_JSON" | jq -c '.items[] | {
