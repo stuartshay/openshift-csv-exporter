@@ -31,7 +31,7 @@ Example:
 - `credential management` — cluster admin and infrastructure credential audit
 - `platform guardrails` — platform distribution validation and misconfigured component detection
 - `policy as code` — OPA Gatekeeper policy enforcement status and constraints
-- `cicd pipeline enforcement` — GitOps and Tekton operator presence and ArgoCD application sync status
+- `cicd pipeline enforcement` — detects in-cluster GitOps (ArgoCD, Flux), Tekton pipelines, and external CI/CD tool footprints
 
 See [`scripts/README.md`](scripts/README.md) for full column details and usage.
 

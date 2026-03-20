@@ -479,7 +479,7 @@ One row per constraint. If Gatekeeper is not installed, a single row is written 
 
 ### export-cicd-pipeline-enforcement.sh
 
-Exports CI/CD pipeline enforcement status. Detects whether OpenShift GitOps (ArgoCD) and OpenShift Pipelines (Tekton) operators are installed, then enumerates ArgoCD Application resources to show what cluster configuration is managed via GitOps.
+Exports CI/CD pipeline enforcement status. Detects in-cluster GitOps tools (ArgoCD, Flux CD), pipeline operators (Tekton), and external CI/CD tool footprints (Jenkins, GitLab, GitHub Actions, Azure DevOps, etc.) via ClusterRoleBindings and namespaces.
 
 ```bash
 ./scripts/export-cicd-pipeline-enforcement.sh
@@ -487,32 +487,38 @@ Exports CI/CD pipeline enforcement status. Detects whether OpenShift GitOps (Arg
 
 **OC commands used:**
 
-- `oc get namespace openshift-gitops` / `oc get namespace gitops-system` / `oc get namespace argocd`
-- `oc get namespace openshift-pipelines` / `oc get namespace tekton-pipelines`
+- `oc get namespace openshift-gitops` / `gitops-system` / `argocd` / `flux-system` / `openshift-pipelines` / `tekton-pipelines`
 - `oc get applications.argoproj.io --all-namespaces -o json`
+- `oc get gitrepositories.source.toolkit.fluxcd.io --all-namespaces -o json`
+- `oc get kustomizations.kustomize.toolkit.fluxcd.io --all-namespaces -o json`
+- `oc get helmreleases.helm.toolkit.fluxcd.io --all-namespaces -o json`
+- `oc get clusterrolebindings -o json`
+- `oc get namespaces -o json`
 
 **Output file:** `cicd-pipeline-enforcement-<cluster>-<timestamp>.csv`
 
 | Column | Description |
 |---|---|
-| `gitops_installed` | `true` if an ArgoCD/GitOps namespace exists |
-| `gitops_namespace` | Detected GitOps namespace (openshift-gitops, gitops-system, or argocd) |
-| `pipelines_installed` | `true` if a Tekton/Pipelines namespace exists |
-| `pipelines_namespace` | Detected Pipelines namespace (openshift-pipelines or tekton-pipelines) |
-| `app_name` | ArgoCD Application resource name |
-| `app_project` | ArgoCD project the application belongs to |
-| `app_source_repo` | Git repository URL for the application source |
-| `app_source_path` | Path within the repository |
-| `app_source_target_revision` | Target branch, tag, or commit |
-| `app_destination_server` | Target cluster API server URL |
-| `app_destination_namespace` | Target namespace on the destination cluster |
-| `app_sync_status` | Sync status (Synced, OutOfSync, Unknown) |
-| `app_health_status` | Health status (Healthy, Degraded, Missing, Progressing) |
-| `app_sync_policy` | `automated` or `manual` |
-| `app_auto_prune` | `true` if automated pruning is enabled |
-| `app_self_heal` | `true` if automated self-heal is enabled |
+| `detection_type` | Category: `gitops`, `pipeline`, `external-cicd`, or `none` |
+| `tool_name` | Detected tool (argocd, fluxcd, tekton, clusterrolebinding, namespace, none) |
+| `installed` | `true` if the tool was detected on the cluster |
+| `namespace` | Namespace where the tool or resource was found |
+| `resource_name` | Resource name (Application, GitRepository, ClusterRoleBinding, etc.) |
+| `detail_1` – `detail_6` | Context-specific details (see below) |
 
-One row per ArgoCD Application. If no GitOps operator is installed or no applications exist, a single summary row is written with empty application fields.
+**Detail columns by detection type:**
+
+| detection_type | detail_1 | detail_2 | detail_3 | detail_4 | detail_5 | detail_6 |
+|---|---|---|---|---|---|---|
+| `gitops` (argocd) | repo URL | path | revision | sync status | health status | sync policy |
+| `gitops` (fluxcd GitRepository) | type=GitRepository | url | branch | ready status | | |
+| `gitops` (fluxcd Kustomization) | type=Kustomization | source name | path | ready status | prune enabled | |
+| `gitops` (fluxcd HelmRelease) | type=HelmRelease | chart | version | ready status | | |
+| `pipeline` (tekton) | operator namespace detected | | | | | |
+| `external-cicd` (clusterrolebinding) | role name | subject kind | subject name | subject namespace | | |
+| `external-cicd` (namespace) | namespace status | | | | | |
+
+One row per detected resource. If no CI/CD tooling is found, a single row is written with `detection_type=none`.
 
 ---
 
