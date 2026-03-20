@@ -179,8 +179,10 @@ echo "$NODES_JSON" | jq -c '.items[] | {
   created: (.metadata.creationTimestamp // "")
 }' | {
   NODE_IDX=0
+  NODE_LOOP_START=$SECONDS
   while IFS= read -r node; do
     NODE_IDX=$((NODE_IDX + 1))
+    NODE_ITEM_START=$SECONDS
     NODE_NAME=$(echo "$node" | jq -r '.name')
     KUBELET_VERSION=$(echo "$node" | jq -r '.kubelet')
     OS_IMAGE=$(echo "$node" | jq -r '.os')
@@ -191,8 +193,6 @@ echo "$NODES_JSON" | jq -c '.items[] | {
     MC_STATE=$(echo "$node" | jq -r '.mcState')
     ROLES=$(echo "$node" | jq -r '.roles')
     CREATED=$(echo "$node" | jq -r '.created')
-
-    echo "[patch-lifecycle]   Node $NODE_IDX/$NODE_COUNT: $NODE_NAME"
 
     CONFIGS_MATCH="false"
     if [ "$CURRENT_CONFIG" = "$DESIRED_CONFIG" ] && [ -n "$CURRENT_CONFIG" ]; then
@@ -218,10 +218,21 @@ echo "$NODES_JSON" | jq -c '.items[] | {
       --arg details "os=$OS_IMAGE;kernel=$KERNEL_VERSION;runtime=$CONTAINER_RUNTIME;roles=$ROLES;current_config=$CURRENT_CONFIG;desired_config=$DESIRED_CONFIG" '
       [$cn,$cc,$cs,"node_version",$name,$kubelet,$desired,$match,"",$state,"",$age,$details] | @csv
     '
+
+    NODE_ITEM_ELAPSED=$(( SECONDS - NODE_ITEM_START ))
+    NODE_LOOP_ELAPSED=$(( SECONDS - NODE_LOOP_START ))
+    if [ "$NODE_IDX" -gt 0 ]; then
+      AVG_PER_NODE=$(( NODE_LOOP_ELAPSED / NODE_IDX ))
+      REMAINING=$(( (NODE_COUNT - NODE_IDX) * AVG_PER_NODE ))
+    else
+      AVG_PER_NODE=0
+      REMAINING=0
+    fi
+    echo "[patch-lifecycle]   Node $NODE_IDX/$NODE_COUNT: $NODE_NAME (${NODE_ITEM_ELAPSED}s) — elapsed: ${NODE_LOOP_ELAPSED}s, avg: ${AVG_PER_NODE}s/node, ETA: ~${REMAINING}s remaining"
   done
 } >> "$OUTPUT_FILE"
 
-echo "[patch-lifecycle] Nodes done."
+echo "[patch-lifecycle] Nodes done — $NODE_COUNT nodes processed."
 
 ELAPSED=$(( SECONDS - SCRIPT_START_SECONDS ))
 echo "[patch-lifecycle] Completed at $(date) — total time: ${ELAPSED}s"
