@@ -19,5 +19,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 "$SCRIPT_DIR/scripts/export-platform-guardrails.sh"
 "$SCRIPT_DIR/scripts/export-policy-as-code.sh"
 "$SCRIPT_DIR/scripts/export-cicd-pipeline-enforcement.sh"
+"$SCRIPT_DIR/scripts/export-control-plane-protections.sh"
 
 echo "All reports completed."

@@ -32,6 +32,7 @@ Example:
 - `platform guardrails` — platform distribution validation and misconfigured component detection
 - `policy as code` — OPA Gatekeeper policy enforcement status and constraints
 - `cicd pipeline enforcement` — detects in-cluster GitOps (ArgoCD, Flux), Tekton pipelines, and external CI/CD tool footprints
+- `control plane protections` — etcd encryption, operator health, pod status, master node taints, RBAC, and TLS certificates
 
 See [`scripts/README.md`](scripts/README.md) for full column details and usage.
 
@@ -50,6 +51,7 @@ See [`scripts/README.md`](scripts/README.md) for full column details and usage.
 | **Platform Usage Guardrails** | `export-platform-guardrails.sh` |
 | **Policy-as-Code Enforcement** | `export-policy-as-code.sh` |
 | **CI/CD Pipeline Enforcement** | `export-cicd-pipeline-enforcement.sh` |
+| **Control Plane Protections** | `export-control-plane-protections.sh` |
 
 ## Requirements
 

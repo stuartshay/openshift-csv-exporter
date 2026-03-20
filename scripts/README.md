@@ -522,6 +522,49 @@ One row per detected resource. If no CI/CD tooling is found, a single row is wri
 
 ---
 
+### export-control-plane-protections.sh
+
+Exports control plane protection status to verify that etcd is protected and access is restricted. Checks etcd encryption at rest, etcd operator health, etcd pod status, master node taint isolation, control plane topology, etcd namespace RBAC, etcd-related ClusterRoleBindings, and etcd TLS certificate presence.
+
+```bash
+./scripts/export-control-plane-protections.sh
+```
+
+**OC commands used:**
+
+- `oc get apiserver cluster -o json`
+- `oc get clusteroperator etcd -o json`
+- `oc get pods -n openshift-etcd -l app=etcd`
+- `oc get nodes -l node-role.kubernetes.io/master -o json`
+- `oc get infrastructure cluster -o json`
+- `oc get rolebindings -n openshift-etcd -o json`
+- `oc get clusterrolebindings -o json`
+- `oc get secrets -n openshift-etcd -o json`
+
+**Output file:** `control-plane-protections-<cluster>-<timestamp>.csv`
+
+| Column | Description |
+|---|---|
+| `check_category` | Area being checked: `etcd_encryption`, `etcd_health`, `control_plane_isolation`, `etcd_access`, `etcd_certificates` |
+| `check_name` | Specific check performed |
+| `status` | `true` if the check passes, `false` if it fails, `info` for informational rows |
+| `details` | Key=value pairs with supporting evidence |
+
+**Checks performed:**
+
+| check_category | check_name | Passes when |
+|---|---|---|
+| `etcd_encryption` | `etcd_encryption_at_rest` | Encryption type is `aescbc` or `aesgcm` (not `identity`) |
+| `etcd_health` | `etcd_operator_status` | Operator is Available and not Degraded |
+| `etcd_health` | `etcd_pod_status` | All etcd pods are in Running phase |
+| `control_plane_isolation` | `master_node_taint` | Master node has `NoSchedule` taint (one row per master) |
+| `control_plane_isolation` | `control_plane_topology` | Topology is `HighlyAvailable` |
+| `etcd_access` | `etcd_namespace_rolebinding` | Informational — lists all RoleBindings in openshift-etcd |
+| `etcd_access` | `etcd_clusterrolebinding` | Informational — lists etcd-related ClusterRoleBindings |
+| `etcd_certificates` | `etcd_tls_secrets` | At least one TLS secret exists in openshift-etcd namespace |
+
+---
+
 ## Usage Examples
 
 Run all reports at once:
@@ -563,3 +606,4 @@ DEBUG=true ./scripts/export-oauth-external-auth.sh
 | **Platform Usage Guardrails** | `export-platform-guardrails.sh` |
 | **Policy-as-Code Enforcement** | `export-policy-as-code.sh` |
 | **CI/CD Pipeline Enforcement** | `export-cicd-pipeline-enforcement.sh` |
+| **Control Plane Protections** | `export-control-plane-protections.sh` |
