@@ -477,6 +477,45 @@ One row per constraint. If Gatekeeper is not installed, a single row is written 
 
 ---
 
+### export-cicd-pipeline-enforcement.sh
+
+Exports CI/CD pipeline enforcement status. Detects whether OpenShift GitOps (ArgoCD) and OpenShift Pipelines (Tekton) operators are installed, then enumerates ArgoCD Application resources to show what cluster configuration is managed via GitOps.
+
+```bash
+./scripts/export-cicd-pipeline-enforcement.sh
+```
+
+**OC commands used:**
+
+- `oc get namespace openshift-gitops` / `oc get namespace gitops-system` / `oc get namespace argocd`
+- `oc get namespace openshift-pipelines` / `oc get namespace tekton-pipelines`
+- `oc get applications.argoproj.io --all-namespaces -o json`
+
+**Output file:** `cicd-pipeline-enforcement-<cluster>-<timestamp>.csv`
+
+| Column | Description |
+|---|---|
+| `gitops_installed` | `true` if an ArgoCD/GitOps namespace exists |
+| `gitops_namespace` | Detected GitOps namespace (openshift-gitops, gitops-system, or argocd) |
+| `pipelines_installed` | `true` if a Tekton/Pipelines namespace exists |
+| `pipelines_namespace` | Detected Pipelines namespace (openshift-pipelines or tekton-pipelines) |
+| `app_name` | ArgoCD Application resource name |
+| `app_project` | ArgoCD project the application belongs to |
+| `app_source_repo` | Git repository URL for the application source |
+| `app_source_path` | Path within the repository |
+| `app_source_target_revision` | Target branch, tag, or commit |
+| `app_destination_server` | Target cluster API server URL |
+| `app_destination_namespace` | Target namespace on the destination cluster |
+| `app_sync_status` | Sync status (Synced, OutOfSync, Unknown) |
+| `app_health_status` | Health status (Healthy, Degraded, Missing, Progressing) |
+| `app_sync_policy` | `automated` or `manual` |
+| `app_auto_prune` | `true` if automated pruning is enabled |
+| `app_self_heal` | `true` if automated self-heal is enabled |
+
+One row per ArgoCD Application. If no GitOps operator is installed or no applications exist, a single summary row is written with empty application fields.
+
+---
+
 ## Usage Examples
 
 Run all reports at once:
@@ -517,3 +556,4 @@ DEBUG=true ./scripts/export-oauth-external-auth.sh
 | **Infrastructure & Platform** | `export-infrastructure-cluster.sh` |
 | **Platform Usage Guardrails** | `export-platform-guardrails.sh` |
 | **Policy-as-Code Enforcement** | `export-policy-as-code.sh` |
+| **CI/CD Pipeline Enforcement** | `export-cicd-pipeline-enforcement.sh` |

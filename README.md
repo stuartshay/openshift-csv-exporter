@@ -31,6 +31,7 @@ Example:
 - `credential management` — cluster admin and infrastructure credential audit
 - `platform guardrails` — platform distribution validation and misconfigured component detection
 - `policy as code` — OPA Gatekeeper policy enforcement status and constraints
+- `cicd pipeline enforcement` — GitOps and Tekton operator presence and ArgoCD application sync status
 
 See [`scripts/README.md`](scripts/README.md) for full column details and usage.
 
@@ -48,6 +49,7 @@ See [`scripts/README.md`](scripts/README.md) for full column details and usage.
 | **Infrastructure & Platform** | `export-infrastructure-cluster.sh` |
 | **Platform Usage Guardrails** | `export-platform-guardrails.sh` |
 | **Policy-as-Code Enforcement** | `export-policy-as-code.sh` |
+| **CI/CD Pipeline Enforcement** | `export-cicd-pipeline-enforcement.sh` |
 
 ## Requirements
 
