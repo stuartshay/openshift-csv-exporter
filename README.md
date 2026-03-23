@@ -34,6 +34,7 @@ Example:
 - `cicd pipeline enforcement` — detects in-cluster GitOps (ArgoCD, Flux), Tekton pipelines, and external CI/CD tool footprints
 - `control plane protections` — etcd encryption, operator health, pod status, master node taints, RBAC, and TLS certificates
 - `patch lifecycle` — OCP version, available updates, operator versions, MachineConfigPool rollout, and per-node OS/kubelet versions
+- `secrets cert rotation` — TLS secrets and CSRs across control-plane namespaces for certificate rotation health
 
 See [`scripts/README.md`](scripts/README.md) for full column details and usage.
 
@@ -54,6 +55,7 @@ See [`scripts/README.md`](scripts/README.md) for full column details and usage.
 | **CI/CD Pipeline Enforcement** | `export-cicd-pipeline-enforcement.sh` |
 | **Control Plane Protections** | `export-control-plane-protections.sh` |
 | **Patch & Version Lifecycle Management** | `export-patch-lifecycle.sh` |
+| **Secrets & Certificate Rotation** | `export-secrets-cert-rotation.sh` |
 
 ## Requirements
 

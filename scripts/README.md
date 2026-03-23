@@ -609,6 +609,54 @@ An up-to-date cluster will show: update channel set, `available_updates` count o
 
 ---
 
+### export-secrets-cert-rotation.sh
+
+Exports TLS secrets and certificate signing requests (CSRs) across control-plane namespaces to assess whether automated certificate rotation is active and healthy.
+
+```bash
+./scripts/export-secrets-cert-rotation.sh
+```
+
+**OC commands used:**
+
+- `oc get secrets -n <namespace> --field-selector type=kubernetes.io/tls -o json` (for each control-plane namespace)
+- `oc get csr -o json`
+
+**Namespaces scanned:**
+
+`openshift-etcd`, `openshift-kube-apiserver`, `openshift-kube-controller-manager`, `openshift-ingress`, `openshift-authentication`, `openshift-monitoring`, `openshift-service-ca`
+
+**Output file:** `secrets-cert-rotation-<cluster>-<timestamp>.csv`
+
+| Column | Description |
+|---|---|
+| `record_type` | `tls_secret` or `csr` |
+| `namespace` | Namespace of the TLS secret (empty for CSRs) |
+| `resource_name` | Secret name or CSR name |
+| `secret_type` | Kubernetes secret type (e.g., `kubernetes.io/tls`) — TLS rows only |
+| `creation_timestamp` | Resource creation time |
+| `age_days` | Age in days since creation |
+| `signer_name` | CSR signer (e.g., `kubernetes.io/kube-apiserver-client`) — CSR rows only |
+| `requestor` | CSR requesting user/service account — CSR rows only |
+| `condition` | CSR approval status: `Approved`, `Denied`, or `Pending` — CSR rows only |
+| `annotations_rotation` | Semicolon-delimited rotation-related annotations (e.g., `certificate-not-after`) — TLS rows only |
+
+**Console warnings:**
+
+| Warning | Meaning |
+|---|---|
+| Pending CSRs > 0 | Certificate rotation may be stalled — nodes waiting for cert approval |
+| TLS secrets older than 365 days | Rotation may not be active for those certificates |
+
+**What auditors should look for:**
+
+- **Stale TLS secrets** (age > 365 days) indicate rotation may not be functioning
+- **Pending CSRs** indicate node certificate rotation is blocked
+- **CSR volume and recency** provides evidence that automated rotation is active
+- **Per-namespace breakdown** shows which control-plane components have fresh certificates
+
+---
+
 ## Usage Examples
 
 Run all reports at once:
@@ -652,3 +700,4 @@ DEBUG=true ./scripts/export-oauth-external-auth.sh
 | **CI/CD Pipeline Enforcement** | `export-cicd-pipeline-enforcement.sh` |
 | **Control Plane Protections** | `export-control-plane-protections.sh` |
 | **Patch & Version Lifecycle Management** | `export-patch-lifecycle.sh` |
+| **Secrets & Certificate Rotation** | `export-secrets-cert-rotation.sh` |
