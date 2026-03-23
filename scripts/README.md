@@ -814,6 +814,90 @@ Exports etcd encryption at rest status — global encryption configuration, kube
 
 ---
 
+### export-governance-policy-ecosystem.sh
+
+Discovery script that inventories governance and policy tooling deployed on the cluster. Probes for 7 products/capabilities and reports what is installed, its version, and key metrics (policy counts, scan status, enforcement modes).
+
+**Record types:** `policy_engine`, `compliance_framework`, `runtime_security`, `multicluster_governance`, `image_registry`, `image_policy`
+
+**Commands used:**
+
+```bash
+# CRD detection (per product)
+oc get crd constrainttemplates.templates.gatekeeper.sh
+oc get crd clusterpolicies.kyverno.io
+oc get crd compliancesuites.compliance.openshift.io
+oc get crd centrals.platform.stackrox.io
+oc get crd securedclusters.platform.stackrox.io
+oc get crd policies.policy.open-cluster-management.io
+oc get crd quayregistries.quay.redhat.com
+
+# Per-product resource queries (only if CRD exists)
+oc get constrainttemplates -o json
+oc get <constraint-type> -o json            # per template
+oc get clusterpolicies.kyverno.io -o json
+oc get policies.kyverno.io -A -o json
+oc get compliancesuites -A -o json
+oc get centrals -A -o json
+oc get securedclusters -A -o json
+oc get policies.policy.open-cluster-management.io -A -o json
+oc get policysets.policy.open-cluster-management.io -A -o json
+oc get quayregistries -A -o json
+oc get csv -n <namespace> -o json            # operator version lookup
+oc get image.config.openshift.io cluster -o json
+```
+
+**Output file:** `governance-policy-ecosystem-<cluster>-<timestamp>.csv`
+
+| Column | Description |
+|---|---|
+| `cluster_name` | Cluster display name |
+| `cluster_context` | `oc` context |
+| `cluster_server` | API server URL |
+| `record_type` | `policy_engine`, `compliance_framework`, `runtime_security`, `multicluster_governance`, `image_registry`, `image_policy` |
+| `product_name` | `gatekeeper`, `kyverno`, `compliance-operator`, `acs-stackrox`, `acm`, `quay`, `image-config` |
+| `installed` | `true` or `false` |
+| `namespace` | Namespace(s) where the product is deployed |
+| `operator_version` | OLM CSV version if available |
+| `detail_1` | Product-specific: template/policy/suite/registry count |
+| `detail_2` | Product-specific: constraint count, policy modes, profiles, secured clusters |
+| `detail_3` | Product-specific: enforcement breakdown, scan status |
+
+**`detail_1` / `detail_2` / `detail_3` by product:**
+
+| Product | detail_1 | detail_2 | detail_3 |
+|---|---|---|---|
+| Gatekeeper | `templates:<N>` | `constraints:<N>` | `deny:<N>;warn:<N>;dryrun:<N>` |
+| Kyverno | `cluster_policies:<N>` | `namespace_policies:<N>` | `enforce:<N>;audit:<N>` |
+| Compliance Operator | `suites:<N>` | `profiles:<list>` | `status:<suite>=<phase>;...` |
+| ACS/StackRox | `centrals:<ns/name>` | `secured_clusters:<ns/name>` | |
+| ACM | `policies:<N>` | `policy_sets:<N>` | |
+| Quay | `registries:<N>` | | |
+| Image Policy | `allowed:<registries>` | `blocked:<registries>` | `insecure:<registries>` |
+
+**Console warnings:**
+
+| Warning | Meaning |
+|---|---|
+| CRITICAL: No policy engine detected | Neither Gatekeeper nor Kyverno is installed — no admission policy enforcement |
+| CRITICAL: Zero governance products detected | No products at all — cluster has no policy tooling |
+| WARNING: Compliance Operator not detected | No automated compliance scanning (CIS, NIST, etc.) |
+| WARNING: ACS/StackRox not detected | No runtime security enforcement |
+| WARNING: No image registry allow/block lists | `image.config.openshift.io` has no registry restrictions |
+
+**What auditors should look for:**
+
+- **Zero policy engines** is a critical finding — the cluster cannot enforce admission policies
+- **Gatekeeper or Kyverno installed but zero policies** means the engine is deployed but unused
+- **Compliance Operator absent** means no automated CIS/NIST benchmarking
+- **ACS/StackRox absent** means no runtime threat detection or network policy enforcement
+- **ACM absent** on a hub cluster means no centralized multi-cluster policy propagation
+- **Image policy not configured** means any container registry can be used — supply chain risk
+- **Compare across clusters** — all clusters should have the same governance toolbox
+- Cross-reference with `export-policy-as-code.sh` for detailed Gatekeeper constraint-level data
+
+---
+
 ## Usage Examples
 
 Run all reports at once:
@@ -861,3 +945,4 @@ DEBUG=true ./scripts/export-oauth-external-auth.sh
 | **Disaster Recovery & Cluster Backup** | `export-disaster-recovery-backup.sh` |
 | **Operator Lifecycle Management (OLM) Control** | `export-olm-governance.sh` |
 | **Etcd Encryption At Rest** | `export-etcd-encryption-status.sh` |
+| **Governance & Policy Ecosystem** | `export-governance-policy-ecosystem.sh` |

@@ -38,6 +38,7 @@ Example:
 - `disaster recovery backup` — etcd member health, control plane operator status, OADP/Velero detection, and volume snapshot readiness
 - `olm governance` — OperatorHub config, CatalogSources, Subscription approval policies, InstallPlans, and OperatorGroup scopes
 - `etcd encryption status` — global encryption config, kubeapiserver and openshiftapiserver operator health, and per-resource encryption migration conditions
+- `governance policy ecosystem` — discovers governance tooling (Gatekeeper, Kyverno, Compliance Operator, ACS/StackRox, ACM, Quay, image policy) with per-product detection and policy counts
 
 See [`scripts/README.md`](scripts/README.md) for full column details and usage.
 
@@ -62,6 +63,7 @@ See [`scripts/README.md`](scripts/README.md) for full column details and usage.
 | **Disaster Recovery & Cluster Backup** | `export-disaster-recovery-backup.sh` |
 | **Operator Lifecycle Management (OLM) Control** | `export-olm-governance.sh` |
 | **Etcd Encryption At Rest** | `export-etcd-encryption-status.sh` |
+| **Governance & Policy Ecosystem** | `export-governance-policy-ecosystem.sh` |
 
 ## Requirements
 
