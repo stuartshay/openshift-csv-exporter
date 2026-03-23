@@ -657,6 +657,62 @@ Exports TLS secrets and certificate signing requests (CSRs) across control-plane
 
 ---
 
+### export-disaster-recovery-backup.sh
+
+Exports disaster recovery and backup readiness data — etcd member health, control plane operator revision status, OADP/Velero backup infrastructure detection, and volume snapshot readiness.
+
+```bash
+./scripts/export-disaster-recovery-backup.sh
+```
+
+**OC commands used:**
+
+- `oc get etcd cluster -o json`
+- `oc get kubeapiserver cluster -o json`
+- `oc get kubecontrollermanager cluster -o json`
+- `oc get kubescheduler cluster -o json`
+- `oc get namespace openshift-adp -o json`
+- `oc get backupstoragelocations -n openshift-adp -o json`
+- `oc get backups.velero.io -n openshift-adp -o json`
+- `oc get volumesnapshotclasses -o json`
+- `oc get volumesnapshots -A -o json`
+
+**Output file:** `disaster-recovery-backup-<cluster>-<timestamp>.csv`
+
+| Column | Description |
+|---|---|
+| `record_type` | `etcd_member`, `cp_operator`, `oadp_backup`, or `volume_snapshot` |
+| `resource_name` | Resource identifier (e.g., `etcd-cluster`, `kubeapiserver`, BSL name, snapshot name) |
+| `namespace` | Namespace where applicable (e.g., `openshift-adp`, `openshift-etcd`) |
+| `condition_available` | `True`/`False` — resource availability status |
+| `condition_degraded` | `True`/`False` — degraded condition (etcd, CP operators) |
+| `condition_progressing` | `True`/`False` — rollout in progress |
+| `detail` | Context-specific: member count, node revisions, provider/bucket, driver/policy, snapshot size |
+| `message` | Condition message or phase status |
+| `last_transition` | Last condition transition or validation timestamp |
+| `age_days` | Resource age in days |
+
+**Console warnings:**
+
+| Warning | Meaning |
+|---|---|
+| etcd DEGRADED | etcd cluster is unhealthy — backup/restore operations may fail |
+| etcd < 3 members | Quorum at risk — single member failure could be unrecoverable |
+| Control plane operator DEGRADED | Unsafe backup window — API server, controller manager, or scheduler unhealthy |
+| OADP not detected | No external backup tooling installed on the cluster |
+| OADP installed but no BSL | Backup storage not configured despite OADP being present |
+| No VolumeSnapshotClasses | Cloud-native PV snapshot backups not available |
+
+**What auditors should look for:**
+
+- **etcd degraded or < 3 members** indicates the cluster cannot safely recover from failures
+- **Control plane operators degraded** means backup operations may produce inconsistent snapshots
+- **OADP absent** means no external backup/restore capability — only etcd snapshots are available
+- **OADP with no backups** suggests backup tooling was installed but never configured or run
+- **VolumeSnapshotClass presence** indicates cloud provider snapshot integration is available for PV recovery
+
+---
+
 ## Usage Examples
 
 Run all reports at once:
@@ -701,3 +757,4 @@ DEBUG=true ./scripts/export-oauth-external-auth.sh
 | **Control Plane Protections** | `export-control-plane-protections.sh` |
 | **Patch & Version Lifecycle Management** | `export-patch-lifecycle.sh` |
 | **Secrets & Certificate Rotation** | `export-secrets-cert-rotation.sh` |
+| **Disaster Recovery & Cluster Backup** | `export-disaster-recovery-backup.sh` |

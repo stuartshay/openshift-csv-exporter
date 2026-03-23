@@ -35,6 +35,7 @@ Example:
 - `control plane protections` — etcd encryption, operator health, pod status, master node taints, RBAC, and TLS certificates
 - `patch lifecycle` — OCP version, available updates, operator versions, MachineConfigPool rollout, and per-node OS/kubelet versions
 - `secrets cert rotation` — TLS secrets and CSRs across control-plane namespaces for certificate rotation health
+- `disaster recovery backup` — etcd member health, control plane operator status, OADP/Velero detection, and volume snapshot readiness
 
 See [`scripts/README.md`](scripts/README.md) for full column details and usage.
 
@@ -56,6 +57,7 @@ See [`scripts/README.md`](scripts/README.md) for full column details and usage.
 | **Control Plane Protections** | `export-control-plane-protections.sh` |
 | **Patch & Version Lifecycle Management** | `export-patch-lifecycle.sh` |
 | **Secrets & Certificate Rotation** | `export-secrets-cert-rotation.sh` |
+| **Disaster Recovery & Cluster Backup** | `export-disaster-recovery-backup.sh` |
 
 ## Requirements
 
