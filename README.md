@@ -36,6 +36,7 @@ Example:
 - `patch lifecycle` — OCP version, available updates, operator versions, MachineConfigPool rollout, and per-node OS/kubelet versions
 - `secrets cert rotation` — TLS secrets and CSRs across control-plane namespaces for certificate rotation health
 - `disaster recovery backup` — etcd member health, control plane operator status, OADP/Velero detection, and volume snapshot readiness
+- `olm governance` — OperatorHub config, CatalogSources, Subscription approval policies, InstallPlans, and OperatorGroup scopes
 
 See [`scripts/README.md`](scripts/README.md) for full column details and usage.
 
@@ -58,6 +59,7 @@ See [`scripts/README.md`](scripts/README.md) for full column details and usage.
 | **Patch & Version Lifecycle Management** | `export-patch-lifecycle.sh` |
 | **Secrets & Certificate Rotation** | `export-secrets-cert-rotation.sh` |
 | **Disaster Recovery & Cluster Backup** | `export-disaster-recovery-backup.sh` |
+| **Operator Lifecycle Management (OLM) Control** | `export-olm-governance.sh` |
 
 ## Requirements
 

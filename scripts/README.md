@@ -713,6 +713,59 @@ Exports disaster recovery and backup readiness data — etcd member health, cont
 
 ---
 
+### export-olm-governance.sh
+
+Exports Operator Lifecycle Management governance data — OperatorHub default source restrictions, CatalogSource inventory, Subscription approval policies (Automatic vs Manual), InstallPlan approval status, and OperatorGroup namespace scopes.
+
+```bash
+./scripts/export-olm-governance.sh
+```
+
+**OC commands used:**
+
+- `oc get operatorhub cluster -o json`
+- `oc get catalogsources -A -o json`
+- `oc get subscriptions.operators.coreos.com -A -o json`
+- `oc get installplans -A -o json`
+- `oc get operatorgroups -A -o json`
+
+**Output file:** `olm-governance-<cluster>-<timestamp>.csv`
+
+| Column | Description |
+|---|---|
+| `record_type` | `operatorhub_config`, `catalog_source`, `subscription`, `install_plan`, or `operator_group` |
+| `name` | Resource name (e.g., catalog name, subscription name, InstallPlan name) |
+| `namespace` | Namespace (e.g., `openshift-marketplace`, operator namespace) |
+| `detail_1` | **operatorhub_config**: `disableAllDefaultSources=<bool>` or `disabled=<bool>` · **catalog_source**: display name · **subscription**: install plan approval (`Automatic`/`Manual`) · **install_plan**: approved (`true`/`false`) · **operator_group**: target namespaces (`;`-delimited) |
+| `detail_2` | **catalog_source**: source type (`grpc`/`image`) · **subscription**: source catalog name · **install_plan**: phase (`Complete`/`Failed`/`Installing`/`RequiresApproval`) · **operator_group**: scope (`AllNamespaces`/`SingleNamespace`/`MultiNamespace`) |
+| `detail_3` | **catalog_source**: image/address · **subscription**: source namespace · **install_plan**: CSV names (`;`-delimited) |
+| `detail_4` | **catalog_source**: connection state (`READY`/`CONNECTING`/`TRANSIENT_FAILURE`) · **subscription**: channel |
+| `detail_5` | **catalog_source**: security context config · **subscription**: current CSV |
+| `detail_6` | **catalog_source**: registry poll interval · **subscription**: installed CSV |
+| `detail_7` | **subscription**: state (`AtLatestKnown`/`UpgradePending`/`UpgradeAvailable`) |
+
+**Console warnings:**
+
+| Warning | Meaning |
+|---|---|
+| community-operators ENABLED | Default community catalog is active — untrusted operators may be installable |
+| CatalogSource not READY | One or more catalogs have connection failures |
+| Automatic approval subscriptions | Operators can auto-upgrade without manual review threshold |
+| InstallPlans awaiting approval | Pending operator upgrades need manual intervention |
+| Failed InstallPlans | Operator installations stuck in failed state |
+| AllNamespaces OperatorGroups | Operators deployed with cluster-wide scope rather than namespace-scoped |
+
+**What auditors should look for:**
+
+- **`disableAllDefaultSources=false` with community-operators enabled** means unapproved operators are installable from public catalogs
+- **Automatic approval subscriptions** bypass manual upgrade thresholds — look for `installPlanApproval=Automatic` in `subscription` rows
+- **Manual approval with pending InstallPlans** is security-positive — confirms upgrade gating is working
+- **AllNamespaces OperatorGroups** grant operators cluster-wide reach — verify this is intentional for each case
+- **Custom CatalogSources** pointing to enterprise registries indicate curated operator catalogs (good governance)
+- **Failed InstallPlans** may indicate blocked or incompatible operator upgrades needing remediation
+
+---
+
 ## Usage Examples
 
 Run all reports at once:
@@ -758,3 +811,4 @@ DEBUG=true ./scripts/export-oauth-external-auth.sh
 | **Patch & Version Lifecycle Management** | `export-patch-lifecycle.sh` |
 | **Secrets & Certificate Rotation** | `export-secrets-cert-rotation.sh` |
 | **Disaster Recovery & Cluster Backup** | `export-disaster-recovery-backup.sh` |
+| **Operator Lifecycle Management (OLM) Control** | `export-olm-governance.sh` |
