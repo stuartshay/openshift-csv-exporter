@@ -24,5 +24,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 "$SCRIPT_DIR/scripts/export-secrets-cert-rotation.sh"
 "$SCRIPT_DIR/scripts/export-disaster-recovery-backup.sh"
 "$SCRIPT_DIR/scripts/export-olm-governance.sh"
+"$SCRIPT_DIR/scripts/export-etcd-encryption-status.sh"
 
 echo "All reports completed."

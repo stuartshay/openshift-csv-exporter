@@ -766,6 +766,54 @@ Exports Operator Lifecycle Management governance data — OperatorHub default so
 
 ---
 
+### export-etcd-encryption-status.sh
+
+Exports etcd encryption at rest status — global encryption configuration, kubeapiserver and openshiftapiserver operator health, and per-resource encryption migration conditions.
+
+```bash
+./scripts/export-etcd-encryption-status.sh
+```
+
+**OC commands used:**
+
+- `oc get apiserver cluster -o json`
+- `oc get kubeapiserver cluster -o json`
+- `oc get openshiftapiserver cluster -o json`
+
+**Output file:** `etcd-encryption-status-<cluster>-<timestamp>.csv`
+
+| Column | Description |
+|---|---|
+| `record_type` | `encryption_config`, `operator_status`, or `encryption_condition` |
+| `resource_name` | `apiserver-cluster`, `kubeapiserver`, or `openshiftapiserver` |
+| `encryption_type` | Configured encryption type: `aescbc`, `aesgcm`, `identity`, or empty |
+| `encryption_enabled` | `true` if type is not `identity`/empty; `false` otherwise |
+| `condition_available` | Operator `Available` condition (`True`/`False`) — operator_status rows only |
+| `condition_degraded` | Operator `Degraded` condition (`True`/`False`) — operator_status rows only |
+| `condition_progressing` | Operator `Progressing` condition (`True`/`False`) — operator_status rows only |
+| `condition_type` | Encryption-specific condition type and status (e.g., `EncryptionMigrationControllerDegraded=False`) — encryption_condition rows only |
+| `condition_reason` | Reason field from encryption condition |
+| `message` | Condition message (degradation details, migration progress) |
+
+**Console warnings:**
+
+| Warning | Meaning |
+|---|---|
+| Encryption DISABLED | `.spec.encryption.type` is `identity` or empty — etcd data is not encrypted at rest |
+| Operator DEGRADED | kubeapiserver or openshiftapiserver is degraded — may indicate encryption migration failure |
+| Operator progressing | Encryption migration may be in progress — operator is rolling out new config |
+
+**What auditors should look for:**
+
+- **`encryption_enabled=false`** is a critical finding — etcd stores Secrets, ConfigMaps, OAuth tokens in plaintext
+- **Operator degraded during migration** indicates encryption rollout stalled — check message for which resources are affected
+- **Operator progressing** after enabling encryption is expected and temporary — recheck after rollout completes
+- **No encryption_condition rows** when encryption is enabled and operators are healthy means migration completed successfully
+- **encryption_condition rows present** detail per-resource migration status — look for `Degraded=True` conditions
+- Cross-reference with `export-control-plane-protections.sh` which captures the same `.spec.encryption.type` as a boolean check
+
+---
+
 ## Usage Examples
 
 Run all reports at once:
@@ -812,3 +860,4 @@ DEBUG=true ./scripts/export-oauth-external-auth.sh
 | **Secrets & Certificate Rotation** | `export-secrets-cert-rotation.sh` |
 | **Disaster Recovery & Cluster Backup** | `export-disaster-recovery-backup.sh` |
 | **Operator Lifecycle Management (OLM) Control** | `export-olm-governance.sh` |
+| **Etcd Encryption At Rest** | `export-etcd-encryption-status.sh` |

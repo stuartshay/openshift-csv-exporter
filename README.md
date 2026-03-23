@@ -37,6 +37,7 @@ Example:
 - `secrets cert rotation` — TLS secrets and CSRs across control-plane namespaces for certificate rotation health
 - `disaster recovery backup` — etcd member health, control plane operator status, OADP/Velero detection, and volume snapshot readiness
 - `olm governance` — OperatorHub config, CatalogSources, Subscription approval policies, InstallPlans, and OperatorGroup scopes
+- `etcd encryption status` — global encryption config, kubeapiserver and openshiftapiserver operator health, and per-resource encryption migration conditions
 
 See [`scripts/README.md`](scripts/README.md) for full column details and usage.
 
@@ -60,6 +61,7 @@ See [`scripts/README.md`](scripts/README.md) for full column details and usage.
 | **Secrets & Certificate Rotation** | `export-secrets-cert-rotation.sh` |
 | **Disaster Recovery & Cluster Backup** | `export-disaster-recovery-backup.sh` |
 | **Operator Lifecycle Management (OLM) Control** | `export-olm-governance.sh` |
+| **Etcd Encryption At Rest** | `export-etcd-encryption-status.sh` |
 
 ## Requirements
 
