@@ -173,6 +173,38 @@ echo "[$LABEL]   CSRs:         $CSR_COUNT"
 PENDING_COUNT=$(echo "$CSR_JSON" | jq '[.items[] | select((.status.conditions // []) | length == 0)] | length' | tr -d '\r')
 if [ "$PENDING_COUNT" -gt 0 ]; then
   echo -e "${RED}[$LABEL]   WARNING: $PENDING_COUNT CSRs are PENDING — certificate rotation may be stalled${NC}"
+
+  # Breakdown by signer name
+  echo "[$LABEL]   Pending CSRs by signer:"
+  echo "$CSR_JSON" | jq -r '
+    [.items[] | select((.status.conditions // []) | length == 0)] |
+    group_by(.spec.signerName) |
+    map({ signer: (.[0].spec.signerName // "unknown"), count: length }) |
+    sort_by(-.count)[] |
+    "      \(.signer): \(.count)"
+  ' | tr -d '\r' | while IFS= read -r line; do
+    echo "[$LABEL] $line"
+  done
+
+  # Top 5 oldest pending CSRs
+  echo "[$LABEL]   Top 5 oldest pending CSRs:"
+  echo "$CSR_JSON" | jq -c '
+    [.items[] | select((.status.conditions // []) | length == 0)] |
+    sort_by(.metadata.creationTimestamp)[:5][]
+  ' | tr -d '\r' | while IFS= read -r csr; do
+    P_NAME=$(echo "$csr" | jq -r '.metadata.name // ""')
+    P_CREATED=$(echo "$csr" | jq -r '.metadata.creationTimestamp // ""')
+    P_REQUESTOR=$(echo "$csr" | jq -r '.spec.username // ""')
+    P_SIGNER=$(echo "$csr" | jq -r '.spec.signerName // ""')
+    P_AGE=""
+    if [ -n "$P_CREATED" ]; then
+      P_EPOCH=$(date -d "$P_CREATED" +%s 2>/dev/null || echo "")
+      if [ -n "$P_EPOCH" ]; then
+        P_AGE="$(( (NOW_EPOCH - P_EPOCH) / 86400 ))d"
+      fi
+    fi
+    echo "[$LABEL]     ${P_NAME}  age=${P_AGE}  requestor=${P_REQUESTOR}  signer=${P_SIGNER}"
+  done
 else
   echo "[$LABEL]   Pending CSRs: 0 (healthy)"
 fi
