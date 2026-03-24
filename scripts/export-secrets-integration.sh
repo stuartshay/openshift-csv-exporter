@@ -330,26 +330,74 @@ echo "[$LABEL] CyberArk Conjur done."
 # ═══════════════════════════════════════════════════════════════════════════════
 # Section 5: Native Secrets Summary
 # ═══════════════════════════════════════════════════════════════════════════════
-echo "[$LABEL] Fetching native secrets summary..."
+# NOTE: We use custom-columns instead of -o json to avoid downloading the full
+# base64-encoded secret data payloads, which can be gigabytes on large clusters.
+echo "[$LABEL] Fetching native secrets summary (lightweight — metadata only)..."
 
-SECRETS_JSON=$(oc get secrets -A -o json 2>/dev/null | tr -d '\r' || echo '{"items":[]}')
-TOTAL_SECRETS=$(echo "$SECRETS_JSON" | jq '.items | length' 2>/dev/null || echo "0")
-echo "[$LABEL] Processing $TOTAL_SECRETS secrets..."
+TOTAL_SECRETS="0"
+OPAQUE_COUNT="0"
+TLS_COUNT="0"
+SA_TOKEN_COUNT="0"
+DOCKERCFG_COUNT="0"
+OTHER_COUNT="0"
+NS_WITH_SECRETS="0"
 
-OPAQUE_COUNT=$(echo "$SECRETS_JSON" | jq '[.items[] | select(.type == "Opaque")] | length' 2>/dev/null || echo "0")
-TLS_COUNT=$(echo "$SECRETS_JSON" | jq '[.items[] | select(.type == "kubernetes.io/tls")] | length' 2>/dev/null || echo "0")
-SA_TOKEN_COUNT=$(echo "$SECRETS_JSON" | jq '[.items[] | select(.type == "kubernetes.io/service-account-token")] | length' 2>/dev/null || echo "0")
-DOCKERCFG_COUNT=$(echo "$SECRETS_JSON" | jq '[.items[] | select(.type == "kubernetes.io/dockercfg" or .type == "kubernetes.io/dockerconfigjson")] | length' 2>/dev/null || echo "0")
-OTHER_COUNT=$(echo "$SECRETS_JSON" | jq --argjson opaque "$OPAQUE_COUNT" --argjson tls "$TLS_COUNT" --argjson sa "$SA_TOKEN_COUNT" --argjson docker "$DOCKERCFG_COUNT" \
-  '(.items | length) - $opaque - $tls - $sa - $docker' 2>/dev/null || echo "0")
+# Permission pre-check: try listing secrets in a known namespace first
+echo "[$LABEL]   Checking RBAC access to list secrets cluster-wide..."
+if ! oc auth can-i list secrets --all-namespaces 2>/dev/null | tr -d '\r' | grep -qi "yes"; then
+  echo -e "${RED}[$LABEL] ERROR: Permission denied — cannot list secrets cluster-wide (oc auth can-i list secrets --all-namespaces = no)${NC}"
+  echo -e "${RED}[$LABEL]   Remediation: Grant cluster-reader or a custom role with 'list' on secrets to the service account${NC}"
+  write_row "native_summary" "kubernetes-secrets" "permission_denied" "(all-namespaces)" "" \
+    "error:rbac_denied" "" ""
+else
+  echo "[$LABEL]   RBAC check passed — fetching secret types and namespaces..."
+  echo "[$LABEL]   Running: oc get secrets -A --no-headers -o custom-columns=TYPE:.type,NS:.metadata.namespace"
 
-# Count namespaces with secrets
-NS_WITH_SECRETS=$(echo "$SECRETS_JSON" | jq '[.items[].metadata.namespace] | unique | length' 2>/dev/null || echo "0")
+  FETCH_START=$SECONDS
+  # Fetch only type and namespace — no secret data payloads
+  SECRETS_RAW=$(oc get secrets -A --no-headers \
+    -o custom-columns=TYPE:.type,NS:.metadata.namespace 2>/dev/null | tr -d '\r' || echo "")
+  FETCH_ELAPSED=$(( SECONDS - FETCH_START ))
+  echo "[$LABEL]   oc get secrets completed in ${FETCH_ELAPSED}s"
 
-write_row "native_summary" "kubernetes-secrets" "true" "(all-namespaces)" "" \
-  "total:${TOTAL_SECRETS};opaque:${OPAQUE_COUNT};tls:${TLS_COUNT}" \
-  "sa_token:${SA_TOKEN_COUNT};dockercfg:${DOCKERCFG_COUNT};other:${OTHER_COUNT}" \
-  "namespaces_with_secrets:$NS_WITH_SECRETS"
+  if [ -z "$SECRETS_RAW" ]; then
+    echo -e "${YELLOW}[$LABEL] WARNING: oc get secrets returned empty output — cluster may have no secrets or access was silently denied${NC}"
+    write_row "native_summary" "kubernetes-secrets" "true" "(all-namespaces)" "" \
+      "total:0;opaque:0;tls:0" "sa_token:0;dockercfg:0;other:0" "namespaces_with_secrets:0"
+  else
+    echo "[$LABEL]   Counting secrets by type..."
+    TOTAL_SECRETS=$(echo "$SECRETS_RAW" | wc -l | tr -d ' ')
+    echo "[$LABEL]   Total secrets found: $TOTAL_SECRETS"
+
+    echo "[$LABEL]   Counting Opaque secrets..."
+    OPAQUE_COUNT=$(echo "$SECRETS_RAW" | grep -c "^Opaque " || echo "0")
+    echo "[$LABEL]   Opaque: $OPAQUE_COUNT"
+
+    echo "[$LABEL]   Counting TLS secrets..."
+    TLS_COUNT=$(echo "$SECRETS_RAW" | grep -c "^kubernetes.io/tls " || echo "0")
+    echo "[$LABEL]   TLS: $TLS_COUNT"
+
+    echo "[$LABEL]   Counting service-account-token secrets..."
+    SA_TOKEN_COUNT=$(echo "$SECRETS_RAW" | grep -c "^kubernetes.io/service-account-token " || echo "0")
+    echo "[$LABEL]   SA tokens: $SA_TOKEN_COUNT"
+
+    echo "[$LABEL]   Counting docker config secrets..."
+    DOCKERCFG_COUNT=$(echo "$SECRETS_RAW" | grep -c "^kubernetes.io/docker" || echo "0")
+    echo "[$LABEL]   Docker config: $DOCKERCFG_COUNT"
+
+    OTHER_COUNT=$(( TOTAL_SECRETS - OPAQUE_COUNT - TLS_COUNT - SA_TOKEN_COUNT - DOCKERCFG_COUNT ))
+    echo "[$LABEL]   Other: $OTHER_COUNT"
+
+    echo "[$LABEL]   Counting unique namespaces..."
+    NS_WITH_SECRETS=$(echo "$SECRETS_RAW" | awk '{print $NF}' | sort -u | wc -l | tr -d ' ')
+    echo "[$LABEL]   Namespaces with secrets: $NS_WITH_SECRETS"
+
+    write_row "native_summary" "kubernetes-secrets" "true" "(all-namespaces)" "" \
+      "total:${TOTAL_SECRETS};opaque:${OPAQUE_COUNT};tls:${TLS_COUNT}" \
+      "sa_token:${SA_TOKEN_COUNT};dockercfg:${DOCKERCFG_COUNT};other:${OTHER_COUNT}" \
+      "namespaces_with_secrets:$NS_WITH_SECRETS"
+  fi
+fi
 echo "[$LABEL] Native secrets summary done."
 
 # ═══════════════════════════════════════════════════════════════════════════════
