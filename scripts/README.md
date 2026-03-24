@@ -898,6 +898,78 @@ oc get image.config.openshift.io cluster -o json
 
 ---
 
+## `export-secrets-integration.sh`
+
+Discovers enterprise secrets integration on the cluster — External Secrets Operator, Secrets Store CSI Driver, HashiCorp Vault, CyberArk Conjur — and provides a native Kubernetes secrets summary by type.
+
+**`oc` commands used:**
+
+```bash
+oc get crd externalsecrets.external-secrets.io
+oc get secretstores.external-secrets.io -A -o json
+oc get clustersecretstores.external-secrets.io -o json
+oc get externalsecrets.external-secrets.io -A -o json
+oc get crd secretproviderclasses.secrets-store.csi.x-k8s.io
+oc get secretproviderclasses.secrets-store.csi.x-k8s.io -A -o json
+oc get crd vaultconnections.secrets.hashicorp.com
+oc get vaultconnections.secrets.hashicorp.com -A -o json
+oc get vaultstaticsecrets.secrets.hashicorp.com -A -o json
+oc get vaultdynamicsecrets.secrets.hashicorp.com -A -o json
+oc get pods -n <vault-ns> -o json
+oc get pods -n <conjur-ns> -o json
+oc get configmaps -A -o json
+oc get secrets -A -o json
+oc get csv -n <ns> -o json
+```
+
+**Output file:** `secrets-integration-<cluster>-<timestamp>.csv`
+
+| Column | Description |
+|---|---|
+| `cluster_name` | Cluster display name |
+| `cluster_context` | `oc` context |
+| `cluster_server` | API server URL |
+| `record_type` | `external_secrets`, `csi_secrets`, `vault`, `conjur`, `native_summary` |
+| `product_name` | `external-secrets-operator`, `secrets-store-csi-driver`, `hashicorp-vault`, `cyberark-conjur`, `kubernetes-secrets` |
+| `installed` | `true` or `false` |
+| `namespace` | Namespace(s) where the product is deployed |
+| `operator_version` | OLM CSV version if available |
+| `detail_1` | Product-specific: store counts, instance counts, secret type breakdown |
+| `detail_2` | Product-specific: external secret count, provider types, follower/authenticator counts |
+| `detail_3` | Product-specific: sync status, pod counts, seal status |
+
+**`detail_1` / `detail_2` / `detail_3` by product:**
+
+| Product | detail_1 | detail_2 | detail_3 |
+|---|---|---|---|
+| External Secrets Operator | `secret_stores:<N>;cluster_stores:<N>` | `external_secrets:<N>` | `synced:<N>;not_synced:<N>` |
+| Secrets Store CSI Driver | `provider_classes:<N>` | `providers:<list>` | `driver_pods:<N>` |
+| HashiCorp Vault | `total:<N>;running:<N>[;vso_connections:<N>;static_secrets:<N>;dynamic_secrets:<N>]` | `injector_pods:<N>` | `sealed:<N\|unknown>` |
+| CyberArk Conjur | `followers:<N>` or `sidecar_mode` | `configmaps_detected:<N>` or `configmaps:<N>` | |
+| Kubernetes Secrets (native) | `total:<N>;opaque:<N>;tls:<N>` | `sa_token:<N>;dockercfg:<N>;other:<N>` | `namespaces_with_secrets:<N>` |
+
+**Console warnings:**
+
+| Warning | Meaning |
+|---|---|
+| CRITICAL: No external secrets provider detected | No ESO, Vault, CSI Driver, or Conjur — all secrets are stored natively in etcd |
+| WARNING: N Opaque secrets with no external provider | Opaque secrets exist without an enterprise secrets manager |
+| WARNING: External Secrets Operator installed but zero ExternalSecrets | ESO is deployed but not in use |
+| WARNING: Secrets Store CSI Driver installed but zero SecretProviderClasses | CSI driver is deployed but not in use |
+
+**What auditors should look for:**
+
+- **Zero external providers** is a critical finding — the organization has no enterprise secrets management integration
+- **ESO or CSI driver installed but unused** means tooling is deployed but not adopted by application teams
+- **HashiCorp Vault deployed with sealed instances** indicates a Vault availability issue
+- **High Opaque secret count** with no external provider suggests credentials may be manually managed in-cluster
+- **CyberArk in sidecar mode** means secrets injection is happening per-pod rather than via a centralized operator
+- Compare across clusters to ensure all production clusters have the same secrets management stack
+- Cross-reference with `export-secrets-cert-rotation.sh` for TLS certificate rotation health
+- Cross-reference with `export-etcd-encryption-status.sh` to verify secrets are encrypted at rest
+
+---
+
 ## Usage Examples
 
 Run all reports at once:
@@ -948,3 +1020,6 @@ DEBUG=true ./scripts/export-oauth-external-auth.sh
 | **Governance & Policy Ecosystem** | `export-governance-policy-ecosystem.sh` |
 | **Industry Framework Alignment** | `export-governance-policy-ecosystem.sh` (Compliance Operator profiles & scan status) |
 | **OpenShift Usage Policies** | `export-platform-guardrails.sh`, `export-olm-governance.sh` |
+| **Exception Management** | `export-scc-privileged.sh`, `export-cluster-admin-bindings.sh`, `export-policy-as-code.sh` |
+| **Authorized Image Registry Policy** | `export-governance-policy-ecosystem.sh` (image policy section) |
+| **Enterprise Secrets Integration** | `export-secrets-integration.sh` |

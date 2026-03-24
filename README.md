@@ -39,6 +39,7 @@ Example:
 - `olm governance` — OperatorHub config, CatalogSources, Subscription approval policies, InstallPlans, and OperatorGroup scopes
 - `etcd encryption status` — global encryption config, kubeapiserver and openshiftapiserver operator health, and per-resource encryption migration conditions
 - `governance policy ecosystem` — discovers governance tooling (Gatekeeper, Kyverno, Compliance Operator, ACS/StackRox, ACM, Quay, image policy) with per-product detection and policy counts
+- `secrets integration` — discovers enterprise secrets providers (External Secrets Operator, Secrets Store CSI Driver, HashiCorp Vault, CyberArk Conjur) and summarizes native Kubernetes secrets by type
 
 See [`scripts/README.md`](scripts/README.md) for full column details and usage.
 
@@ -66,6 +67,9 @@ See [`scripts/README.md`](scripts/README.md) for full column details and usage.
 | **Governance & Policy Ecosystem** | `export-governance-policy-ecosystem.sh` |
 | **Industry Framework Alignment** | `export-governance-policy-ecosystem.sh` (Compliance Operator profiles & scan status) |
 | **OpenShift Usage Policies** | `export-platform-guardrails.sh`, `export-olm-governance.sh` |
+| **Exception Management** | `export-scc-privileged.sh`, `export-cluster-admin-bindings.sh`, `export-policy-as-code.sh` |
+| **Authorized Image Registry Policy** | `export-governance-policy-ecosystem.sh` (image policy section) |
+| **Enterprise Secrets Integration** | `export-secrets-integration.sh` |
 
 ## Requirements
 
