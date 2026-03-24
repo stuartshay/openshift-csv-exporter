@@ -21,7 +21,7 @@ RED='\033[0;31m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-echo "[$LABEL] Starting export at $(date)"
+echo "[$(date +%H:%M:%S)] [$LABEL] Starting export at $(date)"
 
 OUTPUT_FILE="$OUTPUT_DIR/shared-responsibility-model-${CLUSTER_NAME_SAFE}-$TIMESTAMP.csv"
 
@@ -52,13 +52,13 @@ TENANT_NS_FILTER='select(.metadata.name | test("^(openshift-|kube-|openshift$|de
 # ═══════════════════════════════════════════════════════════════════════════════
 # Section 1: Project Request Template
 # ═══════════════════════════════════════════════════════════════════════════════
-echo "[$LABEL] Checking project request template..."
+echo "[$(date +%H:%M:%S)] [$LABEL] Checking project request template..."
 
 PROJECT_CFG=$(oc get project.config.openshift.io/cluster -o json 2>/dev/null | tr -d '\r' || echo '{}')
 TEMPLATE_NAME=$(echo "$PROJECT_CFG" | jq -r '.spec.projectRequestTemplate.name // ""' 2>/dev/null || echo "")
 
 if [ -n "$TEMPLATE_NAME" ]; then
-  echo "[$LABEL]   Project request template configured: $TEMPLATE_NAME"
+  echo "[$(date +%H:%M:%S)] [$LABEL]   Project request template configured: $TEMPLATE_NAME"
   # Inspect the template for quota/limitrange/networkpolicy objects
   TEMPLATE_JSON=$(oc get template "$TEMPLATE_NAME" -n openshift-config -o json 2>/dev/null | tr -d '\r' || echo '{}')
   HAS_QUOTA=$(echo "$TEMPLATE_JSON" | jq '[.objects[]? | select(.kind == "ResourceQuota")] | length' 2>/dev/null || echo "0")
@@ -70,30 +70,30 @@ if [ -n "$TEMPLATE_NAME" ]; then
     "has_quota:$HAS_QUOTA" "has_limitrange:$HAS_LIMITRANGE" "has_networkpolicy:$HAS_NETPOL" "object_kinds:$OBJECT_KINDS"
 
   if [ "$HAS_QUOTA" -eq 0 ]; then
-    echo -e "${YELLOW}[$LABEL] WARNING: Project request template has no ResourceQuota — new projects get no resource limits${NC}"
+    echo -e "${YELLOW}[$(date +%H:%M:%S)] [$LABEL] WARNING: Project request template has no ResourceQuota — new projects get no resource limits${NC}"
   fi
   if [ "$HAS_NETPOL" -eq 0 ]; then
-    echo -e "${YELLOW}[$LABEL] WARNING: Project request template has no NetworkPolicy — new projects get no network isolation${NC}"
+    echo -e "${YELLOW}[$(date +%H:%M:%S)] [$LABEL] WARNING: Project request template has no NetworkPolicy — new projects get no network isolation${NC}"
   fi
 else
-  echo -e "${YELLOW}[$LABEL] WARNING: No project request template configured — new projects get default settings only${NC}"
+  echo -e "${YELLOW}[$(date +%H:%M:%S)] [$LABEL] WARNING: No project request template configured — new projects get default settings only${NC}"
   write_row "project_template" "(cluster)" "(none)" \
     "has_quota:0" "has_limitrange:0" "has_networkpolicy:0" "object_kinds:"
 fi
-echo "[$LABEL] Project request template done."
+echo "[$(date +%H:%M:%S)] [$LABEL] Project request template done."
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Section 2: Namespace Inventory with Ownership
 # ═══════════════════════════════════════════════════════════════════════════════
-echo "[$LABEL] Fetching namespace inventory..."
+echo "[$(date +%H:%M:%S)] [$LABEL] Fetching namespace inventory..."
 
 NS_JSON=$(oc get namespaces -o json 2>/dev/null | tr -d '\r' || echo '{"items":[]}')
 TENANT_NS_LIST=$(echo "$NS_JSON" | jq -c ".items[] | $TENANT_NS_FILTER" 2>/dev/null || echo "")
 TENANT_COUNT=$(echo "$NS_JSON" | jq "[.items[] | $TENANT_NS_FILTER] | length" 2>/dev/null || echo "0")
 TOTAL_NS=$(echo "$NS_JSON" | jq '.items | length' 2>/dev/null || echo "0")
 
-echo "[$LABEL]   Total namespaces: $TOTAL_NS (tenant: $TENANT_COUNT)"
-echo "[$LABEL] Processing $TENANT_COUNT tenant namespaces..."
+echo "[$(date +%H:%M:%S)] [$LABEL]   Total namespaces: $TOTAL_NS (tenant: $TENANT_COUNT)"
+echo "[$(date +%H:%M:%S)] [$LABEL] Processing $TENANT_COUNT tenant namespaces..."
 
 NS_COUNTER=0
 NS_NO_OWNER=0
@@ -116,7 +116,7 @@ while IFS= read -r NS_ITEM; do
   fi
 
   if [ $((NS_COUNTER % 25)) -eq 0 ] || [ "$NS_COUNTER" -eq 1 ]; then
-    echo "[$LABEL]   Namespace $NS_COUNTER/$TENANT_COUNT: $NS_NAME"
+    echo "[$(date +%H:%M:%S)] [$LABEL]   Namespace $NS_COUNTER/$TENANT_COUNT: $NS_NAME"
   fi
 
   write_row "namespace" "$NS_NAME" "$NS_NAME" \
@@ -124,18 +124,18 @@ while IFS= read -r NS_ITEM; do
 done <<< "$TENANT_NS_LIST"
 
 if [ "$NS_NO_OWNER" -gt 0 ]; then
-  echo -e "${YELLOW}[$LABEL] WARNING: $NS_NO_OWNER of $TENANT_COUNT tenant namespaces have no owner or team label${NC}"
+  echo -e "${YELLOW}[$(date +%H:%M:%S)] [$LABEL] WARNING: $NS_NO_OWNER of $TENANT_COUNT tenant namespaces have no owner or team label${NC}"
 fi
-echo "[$LABEL] Namespace inventory done."
+echo "[$(date +%H:%M:%S)] [$LABEL] Namespace inventory done."
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Section 3: ResourceQuotas per Namespace
 # ═══════════════════════════════════════════════════════════════════════════════
-echo "[$LABEL] Fetching ResourceQuotas..."
+echo "[$(date +%H:%M:%S)] [$LABEL] Fetching ResourceQuotas..."
 
 RQ_JSON=$(oc get resourcequotas -A -o json 2>/dev/null | tr -d '\r' || echo '{"items":[]}')
 RQ_COUNT=$(echo "$RQ_JSON" | jq '.items | length' 2>/dev/null || echo "0")
-echo "[$LABEL]   Total ResourceQuotas found: $RQ_COUNT"
+echo "[$(date +%H:%M:%S)] [$LABEL]   Total ResourceQuotas found: $RQ_COUNT"
 
 # Track which tenant namespaces have quotas
 NS_WITH_QUOTA=0
@@ -164,7 +164,7 @@ echo "$RQ_JSON" | jq -c '.items[]' 2>/dev/null | while IFS= read -r RQ_ITEM; do
 done
 
 # Identify tenant namespaces WITHOUT quotas
-echo "[$LABEL]   Checking for tenant namespaces without ResourceQuotas..."
+echo "[$(date +%H:%M:%S)] [$LABEL]   Checking for tenant namespaces without ResourceQuotas..."
 RQ_NS_LIST=$(echo "$RQ_JSON" | jq -r '[.items[].metadata.namespace] | unique | .[]' 2>/dev/null || echo "")
 NS_WITHOUT_QUOTA=0
 while IFS= read -r NS_ITEM; do
@@ -176,20 +176,20 @@ while IFS= read -r NS_ITEM; do
 done <<< "$TENANT_NS_LIST"
 NS_WITH_QUOTA=$((TENANT_COUNT - NS_WITHOUT_QUOTA))
 
-echo "[$LABEL]   Tenant namespaces with quotas: $NS_WITH_QUOTA / $TENANT_COUNT"
+echo "[$(date +%H:%M:%S)] [$LABEL]   Tenant namespaces with quotas: $NS_WITH_QUOTA / $TENANT_COUNT"
 if [ "$NS_WITHOUT_QUOTA" -gt 0 ]; then
-  echo -e "${YELLOW}[$LABEL] WARNING: $NS_WITHOUT_QUOTA tenant namespaces have no ResourceQuota — resource consumption is unbounded${NC}"
+  echo -e "${YELLOW}[$(date +%H:%M:%S)] [$LABEL] WARNING: $NS_WITHOUT_QUOTA tenant namespaces have no ResourceQuota — resource consumption is unbounded${NC}"
 fi
-echo "[$LABEL] ResourceQuotas done."
+echo "[$(date +%H:%M:%S)] [$LABEL] ResourceQuotas done."
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Section 4: LimitRanges per Namespace
 # ═══════════════════════════════════════════════════════════════════════════════
-echo "[$LABEL] Fetching LimitRanges..."
+echo "[$(date +%H:%M:%S)] [$LABEL] Fetching LimitRanges..."
 
 LR_JSON=$(oc get limitranges -A -o json 2>/dev/null | tr -d '\r' || echo '{"items":[]}')
 LR_COUNT=$(echo "$LR_JSON" | jq '.items | length' 2>/dev/null || echo "0")
-echo "[$LABEL]   Total LimitRanges found: $LR_COUNT"
+echo "[$(date +%H:%M:%S)] [$LABEL]   Total LimitRanges found: $LR_COUNT"
 
 echo "$LR_JSON" | jq -c '.items[]' 2>/dev/null | while IFS= read -r LR_ITEM; do
   [ -z "$LR_ITEM" ] && continue
@@ -224,20 +224,20 @@ while IFS= read -r NS_ITEM; do
   fi
 done <<< "$TENANT_NS_LIST"
 
-echo "[$LABEL]   Tenant namespaces with LimitRanges: $((TENANT_COUNT - NS_WITHOUT_LR)) / $TENANT_COUNT"
+echo "[$(date +%H:%M:%S)] [$LABEL]   Tenant namespaces with LimitRanges: $((TENANT_COUNT - NS_WITHOUT_LR)) / $TENANT_COUNT"
 if [ "$NS_WITHOUT_LR" -gt 0 ]; then
-  echo -e "${YELLOW}[$LABEL] WARNING: $NS_WITHOUT_LR tenant namespaces have no LimitRange — pods without resource requests get no defaults${NC}"
+  echo -e "${YELLOW}[$(date +%H:%M:%S)] [$LABEL] WARNING: $NS_WITHOUT_LR tenant namespaces have no LimitRange — pods without resource requests get no defaults${NC}"
 fi
-echo "[$LABEL] LimitRanges done."
+echo "[$(date +%H:%M:%S)] [$LABEL] LimitRanges done."
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Section 5: NetworkPolicies per Namespace
 # ═══════════════════════════════════════════════════════════════════════════════
-echo "[$LABEL] Fetching NetworkPolicies..."
+echo "[$(date +%H:%M:%S)] [$LABEL] Fetching NetworkPolicies..."
 
 NP_JSON=$(oc get networkpolicies -A -o json 2>/dev/null | tr -d '\r' || echo '{"items":[]}')
 NP_COUNT=$(echo "$NP_JSON" | jq '.items | length' 2>/dev/null || echo "0")
-echo "[$LABEL]   Total NetworkPolicies found: $NP_COUNT"
+echo "[$(date +%H:%M:%S)] [$LABEL]   Total NetworkPolicies found: $NP_COUNT"
 
 echo "$NP_JSON" | jq -c '.items[]' 2>/dev/null | while IFS= read -r NP_ITEM; do
   [ -z "$NP_ITEM" ] && continue
@@ -279,23 +279,29 @@ while IFS= read -r NS_ITEM; do
   fi
 done <<< "$TENANT_NS_LIST"
 
-echo "[$LABEL]   Tenant namespaces with NetworkPolicies: $((TENANT_COUNT - NS_WITHOUT_NP)) / $TENANT_COUNT"
+echo "[$(date +%H:%M:%S)] [$LABEL]   Tenant namespaces with NetworkPolicies: $((TENANT_COUNT - NS_WITHOUT_NP)) / $TENANT_COUNT"
 if [ "$NS_WITHOUT_NP" -gt 0 ]; then
-  echo -e "${YELLOW}[$LABEL] WARNING: $NS_WITHOUT_NP tenant namespaces have no NetworkPolicy — flat network, no isolation${NC}"
+  echo -e "${YELLOW}[$(date +%H:%M:%S)] [$LABEL] WARNING: $NS_WITHOUT_NP tenant namespaces have no NetworkPolicy — flat network, no isolation${NC}"
 fi
-echo "[$LABEL] NetworkPolicies done."
+echo "[$(date +%H:%M:%S)] [$LABEL] NetworkPolicies done."
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Section 6: Namespace-level RoleBindings (tenant namespaces only)
 # ═══════════════════════════════════════════════════════════════════════════════
-echo "[$LABEL] Fetching namespace-level RoleBindings..."
+echo "[$(date +%H:%M:%S)] [$LABEL] Fetching namespace-level RoleBindings..."
 
 # Only fetch for tenant namespaces to keep output manageable
 RB_TOTAL=0
+RB_NS_COUNTER=0
 while IFS= read -r NS_ITEM; do
   [ -z "$NS_ITEM" ] && continue
+  RB_NS_COUNTER=$((RB_NS_COUNTER + 1))
   NS_NAME=$(echo "$NS_ITEM" | jq -r '.metadata.name' 2>/dev/null)
   [ -z "$NS_NAME" ] && continue
+
+  if [ $((RB_NS_COUNTER % 25)) -eq 0 ] || [ "$RB_NS_COUNTER" -eq 1 ]; then
+    echo "[$(date +%H:%M:%S)] [$LABEL]   RoleBindings namespace $RB_NS_COUNTER/$TENANT_COUNT: $NS_NAME"
+  fi
 
   RB_JSON=$(oc get rolebindings -n "$NS_NAME" -o json 2>/dev/null | tr -d '\r' || echo '{"items":[]}')
   RB_COUNT=$(echo "$RB_JSON" | jq '.items | length' 2>/dev/null || echo "0")
@@ -322,31 +328,31 @@ while IFS= read -r NS_ITEM; do
   done
 done <<< "$TENANT_NS_LIST"
 
-echo "[$LABEL]   Total RoleBindings across tenant namespaces: $RB_TOTAL"
-echo "[$LABEL] Namespace RoleBindings done."
+echo "[$(date +%H:%M:%S)] [$LABEL]   Total RoleBindings across tenant namespaces: $RB_TOTAL"
+echo "[$(date +%H:%M:%S)] [$LABEL] Namespace RoleBindings done."
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Summary & Console Warnings
 # ═══════════════════════════════════════════════════════════════════════════════
 echo ""
-echo "[$LABEL] ┌──────────────────────────────────────────────────────┐"
-echo "[$LABEL] │          Shared Responsibility Model Summary          │"
-echo "[$LABEL] ├──────────────────────────────────────────────────────┤"
+echo "[$(date +%H:%M:%S)] [$LABEL] ┌──────────────────────────────────────────────────────┐"
+echo "[$(date +%H:%M:%S)] [$LABEL] │          Shared Responsibility Model Summary          │"
+echo "[$(date +%H:%M:%S)] [$LABEL] ├──────────────────────────────────────────────────────┤"
 printf "[$LABEL] │  Project template     : %-28s│\n" "${TEMPLATE_NAME:-(none)}"
 printf "[$LABEL] │  Total namespaces     : %-28s│\n" "$TOTAL_NS (tenant: $TENANT_COUNT)"
 printf "[$LABEL] │  No owner/team label  : %-28s│\n" "$NS_NO_OWNER"
 printf "[$LABEL] │  ResourceQuotas       : %-28s│\n" "$RQ_COUNT (covering $NS_WITH_QUOTA/$TENANT_COUNT tenant ns)"
 printf "[$LABEL] │  LimitRanges          : %-28s│\n" "$LR_COUNT (covering $((TENANT_COUNT - NS_WITHOUT_LR))/$TENANT_COUNT tenant ns)"
 printf "[$LABEL] │  NetworkPolicies      : %-28s│\n" "$NP_COUNT (covering $((TENANT_COUNT - NS_WITHOUT_NP))/$TENANT_COUNT tenant ns)"
-echo "[$LABEL] └──────────────────────────────────────────────────────┘"
+echo "[$(date +%H:%M:%S)] [$LABEL] └──────────────────────────────────────────────────────┘"
 echo ""
 
 # Critical: no project template AND no quotas/limitranges/netpols at all
 if [ -z "$TEMPLATE_NAME" ] && [ "$RQ_COUNT" -eq 0 ] && [ "$LR_COUNT" -eq 0 ] && [ "$NP_COUNT" -eq 0 ]; then
-  echo -e "${RED}[$LABEL] CRITICAL: No project template, no ResourceQuotas, no LimitRanges, no NetworkPolicies — tenant boundaries are completely unenforced${NC}"
-  echo -e "${RED}[$LABEL]   Remediation: Configure a project request template with default quotas, limit ranges, and network policies${NC}"
+  echo -e "${RED}[$(date +%H:%M:%S)] [$LABEL] CRITICAL: No project template, no ResourceQuotas, no LimitRanges, no NetworkPolicies — tenant boundaries are completely unenforced${NC}"
+  echo -e "${RED}[$(date +%H:%M:%S)] [$LABEL]   Remediation: Configure a project request template with default quotas, limit ranges, and network policies${NC}"
 fi
 
 ELAPSED=$(( SECONDS - SCRIPT_START_SECONDS ))
-echo "[$LABEL] Completed at $(date) — total time: ${ELAPSED}s"
+echo "[$(date +%H:%M:%S)] [$LABEL] Completed at $(date) — total time: ${ELAPSED}s"
 echo "Created: $OUTPUT_FILE"
