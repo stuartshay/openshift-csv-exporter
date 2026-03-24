@@ -970,6 +970,76 @@ oc get csv -n <ns> -o json
 
 ---
 
+## `export-shared-responsibility-model.sh`
+
+Exports namespace-level tenant boundary controls — project request template configuration, namespace ownership metadata, ResourceQuotas, LimitRanges, NetworkPolicies, and namespace-scoped RoleBindings. Focuses on tenant (non-system) namespaces to document the shared responsibility boundary between platform teams and application teams.
+
+**`oc` commands used:**
+
+```bash
+oc get project.config.openshift.io/cluster -o json
+oc get template <name> -n openshift-config -o json
+oc get namespaces -o json
+oc get resourcequotas -A -o json
+oc get limitranges -A -o json
+oc get networkpolicies -A -o json
+oc get rolebindings -n <namespace> -o json
+```
+
+**Output file:** `shared-responsibility-model-<cluster>-<timestamp>.csv`
+
+| Column | Description |
+|---|---|
+| `cluster_name` | Cluster display name |
+| `cluster_context` | `oc` context |
+| `cluster_server` | API server URL |
+| `record_type` | `project_template`, `namespace`, `resource_quota`, `limit_range`, `network_policy`, `rolebinding` |
+| `namespace` | Namespace name (or `(cluster)` for project template) |
+| `name` | Resource name |
+| `detail_1` | Section-specific (see table below) |
+| `detail_2` | Section-specific |
+| `detail_3` | Section-specific |
+| `detail_4` | Section-specific |
+
+**`detail_1` / `detail_2` / `detail_3` / `detail_4` by record type:**
+
+| Record Type | detail_1 | detail_2 | detail_3 | detail_4 |
+|---|---|---|---|---|
+| Project Template | `has_quota:<N>` | `has_limitrange:<N>` | `has_networkpolicy:<N>` | `object_kinds:<list>` |
+| Namespace | `owner:<name>` | `team:<name>` | `environment:<env>;status:<phase>;created:<ts>` | `node_selector:<selector>` |
+| ResourceQuota | `hard_cpu:<val>;hard_memory:<val>` | `hard_pods:<val>;hard_storage:<val>` | `used_cpu:<val>;used_memory:<val>;used_pods:<val>` | |
+| LimitRange | `default_cpu:<val>;default_memory:<val>` | `default_request_cpu:<val>;default_request_memory:<val>` | `max_cpu:<val>;max_memory:<val>` | `types:<list>` |
+| NetworkPolicy | `policy_types:<Ingress;Egress>` | `pod_selector:<labels>` | `ingress_rules:<N>;egress_rules:<N>` | `default_deny:<bool>` |
+| RoleBinding | `role_ref:<kind>/<name>` | `subjects:<kind:name;...>` | `subject_count:<N>` | |
+
+**Console warnings:**
+
+| Warning | Meaning |
+|---|---|
+| CRITICAL: No project template + no quotas/limits/netpols | Tenant boundaries are completely unenforced |
+| WARNING: No project request template configured | New projects get default settings only |
+| WARNING: Project template has no ResourceQuota | New projects get no resource limits |
+| WARNING: Project template has no NetworkPolicy | New projects get no network isolation |
+| WARNING: N tenant namespaces have no owner or team label | Namespace ownership is not documented |
+| WARNING: N tenant namespaces have no ResourceQuota | Resource consumption is unbounded |
+| WARNING: N tenant namespaces have no LimitRange | Pods without limits get no defaults |
+| WARNING: N tenant namespaces have no NetworkPolicy | Flat network, no tenant isolation |
+
+**What auditors should look for:**
+
+- **No project request template** is a significant finding — new projects get no default boundaries
+- **Namespaces without ResourceQuotas** can consume unlimited CPU/memory/storage
+- **Namespaces without LimitRanges** allow pods to run without resource requests/limits
+- **Namespaces without NetworkPolicies** have unrestricted network access across the cluster
+- **Missing owner/team labels** means no clear accountability for namespace resources
+- **RoleBindings with broad roles** (admin, edit) granted to many subjects indicate loose RBAC delegation
+- **Empty node-selector annotations** mean tenant workloads can schedule on any node including infra/master
+- Compare coverage ratios across clusters — production should have 100% quota/limit/netpol coverage
+- Cross-reference with `export-clusterrolebindings.sh` for cluster-wide vs. namespace-scoped access patterns
+- Cross-reference with `export-platform-guardrails.sh` for cluster-level configuration guardrails
+
+---
+
 ## Usage Examples
 
 Run all reports at once:
@@ -1023,3 +1093,4 @@ DEBUG=true ./scripts/export-oauth-external-auth.sh
 | **Exception Management** | `export-scc-privileged.sh`, `export-cluster-admin-bindings.sh`, `export-policy-as-code.sh` |
 | **Authorized Image Registry Policy** | `export-governance-policy-ecosystem.sh` (image policy section) |
 | **Enterprise Secrets Integration** | `export-secrets-integration.sh` |
+| **Shared Responsibility Model** | `export-shared-responsibility-model.sh` |
