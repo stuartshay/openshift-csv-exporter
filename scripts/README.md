@@ -946,3 +946,5 @@ DEBUG=true ./scripts/export-oauth-external-auth.sh
 | **Operator Lifecycle Management (OLM) Control** | `export-olm-governance.sh` |
 | **Etcd Encryption At Rest** | `export-etcd-encryption-status.sh` |
 | **Governance & Policy Ecosystem** | `export-governance-policy-ecosystem.sh` |
+| **Industry Framework Alignment** | `export-governance-policy-ecosystem.sh` (Compliance Operator profiles & scan status) |
+| **OpenShift Usage Policies** | `export-platform-guardrails.sh`, `export-olm-governance.sh` |
