@@ -1222,6 +1222,105 @@ oc get clusteroperators -o json
 
 ---
 
+## `export-vulnerability-runtime-detection.sh`
+
+Exports vulnerability scanning and runtime threat detection posture — ACS/StackRox SecuredCluster scanner and collector configuration, Compliance Operator scan settings and bindings, image provenance controls (mirror sets, registry restrictions), and third-party security tool detection (Falco, NeuVector, Sysdig, CrowdStrike, Prisma Cloud, Aqua Security) with DaemonSet health.
+
+### Commands Used
+
+```bash
+oc get crd securedclusters.platform.stackrox.io
+oc get securedclusters.platform.stackrox.io -A -o json
+oc get pods -n <acs-ns> --no-headers -l 'app in (scanner,scanner-v4)'
+oc get crd scansettings.compliance.openshift.io
+oc get scansettings.compliance.openshift.io -A -o json
+oc get crd scansettingbindings.compliance.openshift.io
+oc get scansettingbindings.compliance.openshift.io -A -o json
+oc get crd imagedigestmirrorsets.config.openshift.io
+oc get imagedigestmirrorsets.config.openshift.io -o json
+oc get crd imagetagmirrorsets.config.openshift.io
+oc get imagetagmirrorsets.config.openshift.io -o json
+oc get crd imagecontentsourcepolicies.operator.openshift.io
+oc get imagecontentsourcepolicies.operator.openshift.io -o json
+oc get image.config.openshift.io cluster -o json
+oc get crd falcos.falco.org
+oc get ds -A -l 'app.kubernetes.io/name=falco' -o json
+oc get crd neuvectors.neuvector.com
+oc get deployment -A -l 'app=neuvector-controller-pod' -o json
+oc get crd sysdigagents.sysdig.com
+oc get ds -A -l 'app.kubernetes.io/name=sysdig-agent' -o json
+oc get crd falconnodesensors.falcon.crowdstrike.com
+oc get ds -A -l 'crowdstrike.com/provider=crowdstrike' -o json
+oc get crd defenders.twistlock.com
+oc get crd aquastarboards.aquasecurity.github.io
+oc get ds -A -o json
+```
+
+### Output File
+
+`vulnerability-runtime-detection-<cluster>-<timestamp>.csv`
+
+### Columns
+
+| Column | Description |
+|---|---|
+| `cluster_name` | Name of the OpenShift cluster |
+| `cluster_context` | Current kube context |
+| `cluster_server` | API server URL |
+| `record_type` | One of: `acs_secured_cluster`, `acs_scanner`, `scan_setting`, `scan_setting_binding`, `image_digest_mirror`, `image_tag_mirror`, `image_content_source`, `image_config`, `runtime_falco`, `runtime_neuvector`, `runtime_sysdig`, `runtime_crowdstrike`, `runtime_prisma`, `runtime_aqua`, `security_daemonset`, `summary` |
+| `component_name` | Tool or resource name |
+| `status` | Installation state, health, or pod readiness |
+| `namespace` | Namespace where the component lives |
+| `detail_1` | Component-specific detail (see below) |
+| `detail_2` | Component-specific detail |
+| `detail_3` | Component-specific detail |
+| `detail_4` | Component-specific detail |
+
+### Record Types and Details
+
+| Record Type | detail_1 | detail_2 | detail_3 | detail_4 |
+|---|---|---|---|---|
+| `acs_secured_cluster` | Scanner config (autoscale;replicas;db) | Admission control (creates;updates;events;bypass) | Collector config (collection;taintToleration) | — |
+| `acs_scanner` | Running pod count | Total pod count | — | — |
+| `scan_setting` | Roles; rotation; maxRetry | — | — | — |
+| `scan_setting_binding` | ScanSetting name | Bound profiles | — | — |
+| `image_digest_mirror` | Mirror sources | — | — | — |
+| `image_tag_mirror` | Mirror sources | — | — | — |
+| `image_content_source` | Mirror sources | Type (legacy_deprecated) | — | — |
+| `image_config` | Allowed registries | Blocked registries | Additional trusted CA | Insecure registries |
+| `runtime_falco` | CRD present (boolean) | — | — | — |
+| `runtime_neuvector` | CRD present (boolean) | — | — | — |
+| `runtime_sysdig` | CRD present (boolean) | — | — | — |
+| `runtime_crowdstrike` | CRD present (boolean) | — | — | — |
+| `runtime_prisma` | CRD present (boolean) | — | — | — |
+| `runtime_aqua` | CRD present (boolean) | — | — | — |
+| `security_daemonset` | Container images | — | — | — |
+| `summary` | ACS presence | Compliance ScanSettings | Falco CRD | Further tool CRDs |
+
+### Console Warnings
+
+| Warning | Meaning |
+|---|---|
+| CRITICAL: No vulnerability scanning tool detected | Containers and pods are NOT being scanned for CVEs |
+| CRITICAL: No runtime threat detection tool detected | Cluster has no runtime anomaly monitoring |
+| WARNING: No image registry allow/block list configured | Images can be pulled from any registry |
+
+**What auditors should look for:**
+
+- **No ACS SecuredCluster** means the primary OpenShift vulnerability scanner is not deployed — check whether an alternative is present
+- **ACS collector method** should be `CORE_BPF` or `EBPF` for kernel-level runtime monitoring; `NO_COLLECTION` disables runtime detection
+- **ACS admission control** with `listenOnCreates: false` means vulnerable images can be deployed without admission checks
+- **No Compliance Operator ScanSettings** means vulnerability/compliance scans are not scheduled — check `export-configuration-drift-status.sh` for scan results
+- **ScanSettingBindings** bind security profiles to scan schedules — missing bindings mean profiles are defined but unused
+- **Image registry restrictions** not configured (no allow/block list) means any registry can serve images to the cluster
+- **ImageContentSourcePolicy** is deprecated in OCP 4.18 — migrate to `ImageDigestMirrorSet`
+- **No runtime threat detection tool** means the cluster cannot detect anomalous process execution, file access, or network activity at runtime
+- **Security DaemonSets in tenant namespaces** may indicate team-deployed security agents — verify they are authorized
+- Cross-reference with `export-governance-policy-ecosystem.sh` for ACS/StackRox presence and image policy
+- Cross-reference with `export-configuration-drift-status.sh` for Compliance Operator scan results
+
+---
+
 ## Usage Examples
 
 Run all reports at once:
@@ -1280,3 +1379,5 @@ DEBUG=true ./scripts/export-oauth-external-auth.sh
 | **Centralized Logging, Auditing & Retention** | `export-monitoring-audit-logging.sh` |
 | **Cluster Audit Logging** | `export-monitoring-audit-logging.sh`, `export-apiserver-console-access.sh` |
 | **Configuration Drift Detection** | `export-configuration-drift-status.sh`, `export-patch-lifecycle.sh` |
+| **Vulnerability Scanning** | `export-vulnerability-runtime-detection.sh`, `export-governance-policy-ecosystem.sh` |
+| **Runtime Threat Detection** | `export-vulnerability-runtime-detection.sh` |
