@@ -1040,6 +1040,91 @@ oc get rolebindings -n <namespace> -o json
 
 ---
 
+## export-monitoring-audit-logging.sh
+
+Exports observability and audit logging configuration — cluster monitoring operator health, cluster monitoring config, user workload monitoring, Datadog integration, cluster logging and log forwarding, alerting rules, and Alertmanager receivers.
+
+### Commands Used
+
+```bash
+oc get clusteroperator monitoring -o json
+oc get configmap cluster-monitoring-config -n openshift-monitoring -o json
+oc get namespace openshift-user-workload-monitoring
+oc get pods -n openshift-user-workload-monitoring --no-headers
+oc get configmap user-workload-monitoring-config -n openshift-user-workload-monitoring -o json
+oc get apiserver.config.openshift.io/cluster -o json
+oc get crd datadogagents.datadoghq.com
+oc get datadogagents.datadoghq.com -A -o json
+oc get csv -n <datadog-ns> -o json
+oc get daemonset -n <ns> -o json
+oc get pods -n <datadog-ns> --no-headers
+oc get clusteroperator cluster-logging -o json
+oc get crd clusterloggings.logging.openshift.io
+oc get clusterlogging instance -n openshift-logging -o json
+oc get clusterlogforwarder instance -n openshift-logging -o json
+oc get prometheusrules -A -o json
+oc get secret alertmanager-main -n openshift-monitoring -o json
+```
+
+### Output File
+
+`monitoring-audit-logging-<cluster>-<timestamp>.csv`
+
+### Columns
+
+| Column | Description |
+|---|---|
+| `cluster_name` | Name of the OpenShift cluster |
+| `cluster_context` | Current kube context |
+| `cluster_server` | API server URL |
+| `record_type` | One of: `cluster_operator`, `monitoring_config`, `user_workload_monitoring`, `audit_policy`, `external_monitoring`, `cluster_logging`, `log_forwarder`, `alerting_rules`, `alertmanager` |
+| `component_name` | Component or product name (e.g., `monitoring`, `Datadog`, `ClusterLogForwarder`) |
+| `status` | Health status or configuration state |
+| `namespace` | Namespace where the component lives |
+| `detail_1` | Component-specific detail (see below) |
+| `detail_2` | Component-specific detail |
+| `detail_3` | Component-specific detail |
+| `detail_4` | Component-specific detail |
+
+### Record Types and Details
+
+| Record Type | detail_1 | detail_2 | detail_3 | detail_4 |
+|---|---|---|---|---|
+| `cluster_operator` | Operator version | Available status | Degraded status | Progressing status |
+| `monitoring_config` | Retention period | Storage class | Storage size | UWM enabled via config |
+| `user_workload_monitoring` | Pod count | Retention | Storage class | — |
+| `audit_policy` | Audit profile level | Custom rules count | — | — |
+| `external_monitoring` | Version; agent pod count | Log collection; APM | Process monitoring; cluster agent | — |
+| `cluster_logging` | Operator version | Collection type | Log store type | Status |
+| `log_forwarder` | Output destinations | Pipelines | Input types | — |
+| `alerting_rules` | Critical; warning; info counts | Recording rules count | Rule object count | Namespace count |
+| `alertmanager` | Receiver count | Receiver types | Route count | — |
+
+### Console Warnings
+
+| Warning | Meaning |
+|---|---|
+| WARNING: Monitoring operator is degraded | Prometheus/Alertmanager stack may be unhealthy |
+| WARNING: No cluster-monitoring-config ConfigMap | Using all monitoring defaults — no persistent storage, default retention |
+| WARNING: User workload monitoring is DISABLED | Tenant workloads cannot emit custom metrics |
+| WARNING: Audit profile is 'Default' | API request bodies NOT logged — consider WriteRequestBodies for compliance |
+| CRITICAL: No external monitoring, no cluster logging, no log forwarding | Usage is NOT being monitored externally |
+| CRITICAL: Audit profile 'Default' with no external log aggregation | Unapproved usage cannot be detected |
+
+**What auditors should look for:**
+
+- **Monitoring operator degraded** means Prometheus/Alertmanager may not be collecting or alerting properly
+- **No cluster-monitoring-config** means default 15-day retention with no persistent storage — metrics lost on pod restart
+- **User workload monitoring disabled** means teams cannot define custom ServiceMonitors or PrometheusRules
+- **Audit profile 'Default'** only logs metadata, not request bodies — insufficient for forensics
+- **Datadog not installed** (when expected) or **log collection disabled** means gaps in log aggregation
+- **No ClusterLogForwarder** means audit/application/infrastructure logs are not forwarded to a SIEM
+- **No alert rules** or **only default receivers** means the cluster cannot notify on anomalous usage
+- Cross-reference alerting rules with Alertmanager receivers — rules without receivers fire silently
+- Cross-reference with `export-apiserver-console-access.sh` which also reports the audit profile level
+
+---
+
 ## Usage Examples
 
 Run all reports at once:
@@ -1094,3 +1179,4 @@ DEBUG=true ./scripts/export-oauth-external-auth.sh
 | **Authorized Image Registry Policy** | `export-governance-policy-ecosystem.sh` (image policy section) |
 | **Enterprise Secrets Integration** | `export-secrets-integration.sh` |
 | **Shared Responsibility Model** | `export-shared-responsibility-model.sh` |
+| **OpenShift Usage Monitoring** | `export-monitoring-audit-logging.sh` |

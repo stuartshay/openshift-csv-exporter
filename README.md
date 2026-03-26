@@ -41,6 +41,7 @@ Example:
 - `governance policy ecosystem` — discovers governance tooling (Gatekeeper, Kyverno, Compliance Operator, ACS/StackRox, ACM, Quay, image policy) with per-product detection and policy counts
 - `secrets integration` — discovers enterprise secrets providers (External Secrets Operator, Secrets Store CSI Driver, HashiCorp Vault, CyberArk Conjur) and summarizes native Kubernetes secrets by type
 - `shared responsibility model` — namespace-level tenant boundary controls: project request template, namespace ownership labels, ResourceQuotas, LimitRanges, NetworkPolicies, and namespace RoleBindings
+- `monitoring audit logging` — observability and audit logging: monitoring operator health, cluster monitoring config, user workload monitoring, Datadog integration, cluster logging, log forwarding, alerting rules, and Alertmanager receivers
 
 See [`scripts/README.md`](scripts/README.md) for full column details and usage.
 
@@ -72,6 +73,7 @@ See [`scripts/README.md`](scripts/README.md) for full column details and usage.
 | **Authorized Image Registry Policy** | `export-governance-policy-ecosystem.sh` (image policy section) |
 | **Enterprise Secrets Integration** | `export-secrets-integration.sh` |
 | **Shared Responsibility Model** | `export-shared-responsibility-model.sh` |
+| **OpenShift Usage Monitoring** | `export-monitoring-audit-logging.sh` |
 
 ## Requirements
 
