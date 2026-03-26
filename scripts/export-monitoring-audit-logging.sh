@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Description: Exports observability and audit logging configuration — cluster monitoring, user workload monitoring, Datadog, log forwarding, audit policy, and alerting rules
-# Audit Area:  OpenShift Usage Monitoring
+# Description: Exports observability, audit logging, and centralized log retention — cluster monitoring, user workload monitoring, Datadog, log forwarding destinations & TLS, audit log forwarding validation, LokiStack log retention, alerting rules
+# Audit Area:  OpenShift Usage Monitoring / Centralized Logging, Auditing & Retention
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -360,9 +360,131 @@ if echo "$CLF_INSTANCE" | jq -e '.metadata.name' >/dev/null 2>&1; then
   write_row "log_forwarder" "ClusterLogForwarder" "${CLF_READY:-unknown}" "$LOGGING_NS" \
     "outputs:${CLF_OUTPUTS}" "pipelines:${CLF_PIPELINES}" \
     "input_types:${CLF_INPUT_TYPES}" ""
+
+  # ── CLF output destination details (URL + TLS) ──
+  echo "[$(date +%H:%M:%S)] [$LABEL] Checking CLF output destinations and TLS..."
+  CLF_OUTPUT_COUNT=$(echo "$CLF_INSTANCE" | jq '[.spec.outputs // [] | .[]] | length' 2>/dev/null || echo "0")
+  echo "[$(date +%H:%M:%S)] [$LABEL]   CLF outputs: $CLF_OUTPUT_COUNT"
+
+  if [ "$CLF_OUTPUT_COUNT" -gt 0 ]; then
+    echo "$CLF_INSTANCE" | jq -c '.spec.outputs[]?' 2>/dev/null | while IFS= read -r OUT_ITEM; do
+      [ -z "$OUT_ITEM" ] && continue
+      OUT_NAME=$(echo "$OUT_ITEM" | jq -r '.name // ""' 2>/dev/null)
+      OUT_TYPE=$(echo "$OUT_ITEM" | jq -r '.type // ""' 2>/dev/null)
+      OUT_URL=$(echo "$OUT_ITEM" | jq -r '.url // ""' 2>/dev/null)
+      # Redact credentials from URL — keep scheme + host only
+      OUT_URL_SAFE=""
+      if [ -n "$OUT_URL" ]; then
+        OUT_URL_SAFE=$(echo "$OUT_URL" | sed -E 's|://[^@]*@|://***@|; s|\?.*||' 2>/dev/null || echo "$OUT_URL")
+      fi
+      # Check TLS configuration
+      OUT_TLS_CONFIGURED="false"
+      if echo "$OUT_ITEM" | jq -e '.tls // .secret' >/dev/null 2>&1; then
+        OUT_TLS_CONFIGURED="true"
+      fi
+      # Check if URL uses TLS scheme
+      OUT_TLS_SCHEME="false"
+      if echo "$OUT_URL" | grep -qiE '^https://|^tls://|^kafka\+tls://' 2>/dev/null; then
+        OUT_TLS_SCHEME="true"
+      fi
+
+      echo "[$(date +%H:%M:%S)] [$LABEL]     Output: $OUT_NAME type=$OUT_TYPE tls_config=$OUT_TLS_CONFIGURED tls_scheme=$OUT_TLS_SCHEME"
+
+      write_row "log_forwarder_output" "$OUT_NAME" "$OUT_TYPE" "$LOGGING_NS" \
+        "url:${OUT_URL_SAFE}" "tls_configured:${OUT_TLS_CONFIGURED}" \
+        "tls_scheme:${OUT_TLS_SCHEME}" ""
+    done
+  fi
+
+  # ── Audit log forwarding validation ──
+  echo "[$(date +%H:%M:%S)] [$LABEL] Checking whether audit logs are forwarded..."
+  CLF_AUDIT_FORWARDED="false"
+  CLF_AUDIT_DESTINATIONS=""
+  if echo "$CLF_INPUT_TYPES" | grep -q "audit" 2>/dev/null; then
+    CLF_AUDIT_FORWARDED="true"
+    CLF_AUDIT_DESTINATIONS=$(echo "$CLF_INSTANCE" | jq -r '[.spec.pipelines[]? | select(.inputRefs[]? == "audit") | .outputRefs[]?] | unique | join(";")' 2>/dev/null || echo "")
+    echo "[$(date +%H:%M:%S)] [$LABEL]   Audit logs ARE forwarded → destinations: ${CLF_AUDIT_DESTINATIONS}"
+    SECTIONS_OK=$((SECTIONS_OK + 1))
+  else
+    echo -e "${RED}[$(date +%H:%M:%S)] [$LABEL] ERROR: Audit logs are NOT included in any CLF pipeline — audit events are not forwarded to centralized logging${NC}"
+    echo -e "${RED}[$(date +%H:%M:%S)] [$LABEL]   Remediation: Add 'audit' to inputRefs in a ClusterLogForwarder pipeline${NC}"
+    SECTIONS_WARN=$((SECTIONS_WARN + 1))
+  fi
+
+  write_row "audit_forwarding" "CLF-audit-pipeline" "$CLF_AUDIT_FORWARDED" "$LOGGING_NS" \
+    "audit_in_pipelines:${CLF_AUDIT_FORWARDED}" "destinations:${CLF_AUDIT_DESTINATIONS}" "" ""
 else
   echo "[$(date +%H:%M:%S)] [$LABEL]   No ClusterLogForwarder configured"
   SECTIONS_WARN=$((SECTIONS_WARN + 1))
+  CLF_AUDIT_FORWARDED="false"
+fi
+
+# ── ClusterLogging log retention settings ──
+echo "[$(date +%H:%M:%S)] [$LABEL] Checking ClusterLogging log retention..."
+
+CL_RETENTION_APP=""
+CL_RETENTION_INFRA=""
+CL_RETENTION_AUDIT=""
+
+if [ "$LOGGING_INSTALLED" = "true" ] && [ "$CL_STATUS" = "configured" ]; then
+  CL_RETENTION_APP=$(echo "$CL_JSON" | jq -r '.spec.logStore.retentionPolicy.application.maxAge // .spec.logStore.elasticsearch.retentionPolicy.application.maxAge // ""' 2>/dev/null || echo "")
+  CL_RETENTION_INFRA=$(echo "$CL_JSON" | jq -r '.spec.logStore.retentionPolicy.infra.maxAge // .spec.logStore.elasticsearch.retentionPolicy.infra.maxAge // ""' 2>/dev/null || echo "")
+  CL_RETENTION_AUDIT=$(echo "$CL_JSON" | jq -r '.spec.logStore.retentionPolicy.audit.maxAge // .spec.logStore.elasticsearch.retentionPolicy.audit.maxAge // ""' 2>/dev/null || echo "")
+
+  echo "[$(date +%H:%M:%S)] [$LABEL]   Log retention — app:${CL_RETENTION_APP:-(default)} infra:${CL_RETENTION_INFRA:-(default)} audit:${CL_RETENTION_AUDIT:-(default)}"
+
+  if [ -z "$CL_RETENTION_APP" ] && [ -z "$CL_RETENTION_INFRA" ] && [ -z "$CL_RETENTION_AUDIT" ]; then
+    echo -e "${YELLOW}[$(date +%H:%M:%S)] [$LABEL] WARNING: No log retention policy configured in ClusterLogging — using log store defaults${NC}"
+  fi
+
+  write_row "log_retention" "ClusterLogging" "configured" "$LOGGING_NS" \
+    "app_retention:${CL_RETENTION_APP:-(default)}" "infra_retention:${CL_RETENTION_INFRA:-(default)}" \
+    "audit_retention:${CL_RETENTION_AUDIT:-(default)}" ""
+else
+  echo "[$(date +%H:%M:%S)] [$LABEL]   ClusterLogging not configured — skipping retention check"
+fi
+
+# ── LokiStack log store inspection ──
+echo "[$(date +%H:%M:%S)] [$LABEL] Checking LokiStack log store..."
+
+LOKISTACK_INSTALLED="false"
+if oc get crd lokistacks.loki.grafana.com >/dev/null 2>&1; then
+  LOKISTACK_INSTALLED="true"
+  echo "[$(date +%H:%M:%S)] [$LABEL]   LokiStack CRD found"
+
+  LS_JSON=$(oc get lokistacks -n "$LOGGING_NS" -o json 2>/dev/null | tr -d '\r' || echo '{"items":[]}')
+  LS_COUNT=$(echo "$LS_JSON" | jq '.items | length' 2>/dev/null || echo "0")
+
+  if [ "$LS_COUNT" -gt 0 ]; then
+    LS_NAME=$(echo "$LS_JSON" | jq -r '.items[0].metadata.name // ""' 2>/dev/null)
+    LS_SIZE=$(echo "$LS_JSON" | jq -r '.items[0].spec.size // ""' 2>/dev/null || echo "")
+    LS_STORAGE_TYPE=$(echo "$LS_JSON" | jq -r '.items[0].spec.storage.schemas[0].objectStorage.type // .items[0].spec.storage.secret.type // ""' 2>/dev/null || echo "")
+    LS_TENANT_MODE=$(echo "$LS_JSON" | jq -r '.items[0].spec.tenants.mode // ""' 2>/dev/null || echo "")
+
+    # Retention config (global + per-tenant)
+    LS_GLOBAL_RETENTION=$(echo "$LS_JSON" | jq -r '.items[0].spec.limits.global.retention.days // ""' 2>/dev/null || echo "")
+    LS_STREAM_RETENTION=$(echo "$LS_JSON" | jq -r '[.items[0].spec.limits.global.retention.streams[]? | "\(.selector):\(.days)d"] | join(";")' 2>/dev/null || echo "")
+
+    # Ready condition
+    LS_READY=$(echo "$LS_JSON" | jq -r '[.items[0].status.conditions[]? | select(.type == "Ready")] | first | .status // ""' 2>/dev/null || echo "")
+
+    echo "[$(date +%H:%M:%S)] [$LABEL]   LokiStack: $LS_NAME size=$LS_SIZE tenant=$LS_TENANT_MODE ready=$LS_READY"
+    echo "[$(date +%H:%M:%S)] [$LABEL]   Global retention: ${LS_GLOBAL_RETENTION:-(default)} days"
+    if [ -n "$LS_STREAM_RETENTION" ]; then
+      echo "[$(date +%H:%M:%S)] [$LABEL]   Stream retention: $LS_STREAM_RETENTION"
+    fi
+
+    write_row "lokistack" "$LS_NAME" "${LS_READY:-unknown}" "$LOGGING_NS" \
+      "size:${LS_SIZE};tenant_mode:${LS_TENANT_MODE}" \
+      "storage:${LS_STORAGE_TYPE}" \
+      "global_retention_days:${LS_GLOBAL_RETENTION:-(default)}" \
+      "stream_retention:${LS_STREAM_RETENTION}"
+  else
+    echo "[$(date +%H:%M:%S)] [$LABEL]   LokiStack CRD present but no instance found in $LOGGING_NS"
+    write_row "lokistack" "LokiStack" "no_instance" "$LOGGING_NS" "" "" "" ""
+  fi
+else
+  echo "[$(date +%H:%M:%S)] [$LABEL]   LokiStack CRD not found"
 fi
 
 echo "[$(date +%H:%M:%S)] [$LABEL] Cluster logging done."
@@ -469,8 +591,10 @@ printf "[$(date +%H:%M:%S)] [$LABEL] │  Monitoring operator   : %-27s│\n" "$
 printf "[$(date +%H:%M:%S)] [$LABEL] │  Monitoring config     : %-27s│\n" "${CMC_EXISTS}"
 printf "[$(date +%H:%M:%S)] [$LABEL] │  User workload mon.    : %-27s│\n" "$UWM_STATUS"
 printf "[$(date +%H:%M:%S)] [$LABEL] │  Audit profile         : %-27s│\n" "$AUDIT_PROFILE"
+printf "[$(date +%H:%M:%S)] [$LABEL] │  Audit logs forwarded  : %-27s│\n" "${CLF_AUDIT_FORWARDED}"
 printf "[$(date +%H:%M:%S)] [$LABEL] │  Datadog               : %-27s│\n" "installed:${DD_INSTALLED} (${DD_AGENT_COUNT} pods)"
 printf "[$(date +%H:%M:%S)] [$LABEL] │  Cluster logging       : %-27s│\n" "${LOGGING_INSTALLED}"
+printf "[$(date +%H:%M:%S)] [$LABEL] │  LokiStack             : %-27s│\n" "${LOKISTACK_INSTALLED}"
 printf "[$(date +%H:%M:%S)] [$LABEL] │  Log forwarder         : %-27s│\n" "${CLF_FOUND}"
 printf "[$(date +%H:%M:%S)] [$LABEL] │  Alert rules           : %-27s│\n" "${ALERT_TOTAL} (crit:${ALERT_CRITICAL} warn:${ALERT_WARNING})"
 printf "[$(date +%H:%M:%S)] [$LABEL] │  Alertmanager rcvrs    : %-27s│\n" "${AM_RECEIVER_COUNT} (${AM_RECEIVER_TYPES})"
@@ -485,6 +609,10 @@ fi
 
 if [ "$AUDIT_PROFILE" = "Default" ] && [ "$DD_INSTALLED" = "false" ] && [ "$CLF_FOUND" = "false" ]; then
   echo -e "${RED}[$(date +%H:%M:%S)] [$LABEL] CRITICAL: Audit profile is 'Default' with no external log aggregation — unapproved usage cannot be detected${NC}"
+fi
+
+if [ "$CLF_FOUND" = "true" ] && [ "$CLF_AUDIT_FORWARDED" = "false" ]; then
+  echo -e "${RED}[$(date +%H:%M:%S)] [$LABEL] CRITICAL: ClusterLogForwarder exists but audit logs are NOT forwarded — audit events stay local and may be lost${NC}"
 fi
 
 ELAPSED=$(( SECONDS - SCRIPT_START_SECONDS ))

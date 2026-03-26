@@ -1042,7 +1042,7 @@ oc get rolebindings -n <namespace> -o json
 
 ## export-monitoring-audit-logging.sh
 
-Exports observability and audit logging configuration — cluster monitoring operator health, cluster monitoring config, user workload monitoring, Datadog integration, cluster logging and log forwarding, alerting rules, and Alertmanager receivers.
+Exports observability, audit logging, and centralized log retention — cluster monitoring operator health, cluster monitoring config, user workload monitoring, Datadog integration, cluster logging and log forwarding with output destination TLS verification, audit log forwarding validation, LokiStack log retention, alerting rules, and Alertmanager receivers.
 
 ### Commands Used
 
@@ -1062,6 +1062,8 @@ oc get clusteroperator cluster-logging -o json
 oc get crd clusterloggings.logging.openshift.io
 oc get clusterlogging instance -n openshift-logging -o json
 oc get clusterlogforwarder instance -n openshift-logging -o json
+oc get crd lokistacks.loki.grafana.com
+oc get lokistacks -n openshift-logging -o json
 oc get prometheusrules -A -o json
 oc get secret alertmanager-main -n openshift-monitoring -o json
 ```
@@ -1077,7 +1079,7 @@ oc get secret alertmanager-main -n openshift-monitoring -o json
 | `cluster_name` | Name of the OpenShift cluster |
 | `cluster_context` | Current kube context |
 | `cluster_server` | API server URL |
-| `record_type` | One of: `cluster_operator`, `monitoring_config`, `user_workload_monitoring`, `audit_policy`, `external_monitoring`, `cluster_logging`, `log_forwarder`, `alerting_rules`, `alertmanager` |
+| `record_type` | One of: `cluster_operator`, `monitoring_config`, `user_workload_monitoring`, `audit_policy`, `external_monitoring`, `cluster_logging`, `log_forwarder`, `log_forwarder_output`, `audit_forwarding`, `log_retention`, `lokistack`, `alerting_rules`, `alertmanager` |
 | `component_name` | Component or product name (e.g., `monitoring`, `Datadog`, `ClusterLogForwarder`) |
 | `status` | Health status or configuration state |
 | `namespace` | Namespace where the component lives |
@@ -1097,6 +1099,10 @@ oc get secret alertmanager-main -n openshift-monitoring -o json
 | `external_monitoring` | Version; agent pod count | Log collection; APM | Process monitoring; cluster agent | — |
 | `cluster_logging` | Operator version | Collection type | Log store type | Status |
 | `log_forwarder` | Output destinations | Pipelines | Input types | — |
+| `log_forwarder_output` | Destination URL (redacted) | TLS configured (boolean) | TLS scheme (boolean) | — |
+| `audit_forwarding` | Audit in pipelines (boolean) | Audit destinations | — | — |
+| `log_retention` | App retention | Infra retention | Audit retention | — |
+| `lokistack` | Size; tenant mode | Storage type | Global retention (days) | Stream retention |
 | `alerting_rules` | Critical; warning; info counts | Recording rules count | Rule object count | Namespace count |
 | `alertmanager` | Receiver count | Receiver types | Route count | — |
 
@@ -1110,6 +1116,9 @@ oc get secret alertmanager-main -n openshift-monitoring -o json
 | WARNING: Audit profile is 'Default' | API request bodies NOT logged — consider WriteRequestBodies for compliance |
 | CRITICAL: No external monitoring, no cluster logging, no log forwarding | Usage is NOT being monitored externally |
 | CRITICAL: Audit profile 'Default' with no external log aggregation | Unapproved usage cannot be detected |
+| WARNING: No log retention policy configured in ClusterLogging | Using log store defaults — retention period unknown |
+| ERROR: Audit logs are NOT included in any CLF pipeline | Audit events not forwarded to centralized logging |
+| CRITICAL: CLF exists but audit logs are NOT forwarded | Audit events stay local and may be lost |
 
 **What auditors should look for:**
 
@@ -1119,6 +1128,10 @@ oc get secret alertmanager-main -n openshift-monitoring -o json
 - **Audit profile 'Default'** only logs metadata, not request bodies — insufficient for forensics
 - **Datadog not installed** (when expected) or **log collection disabled** means gaps in log aggregation
 - **No ClusterLogForwarder** means audit/application/infrastructure logs are not forwarded to a SIEM
+- **CLF output missing TLS** means log data in transit may not be encrypted — check `tls_configured` and `tls_scheme` columns
+- **Audit logs not forwarded** (audit_forwarding record shows `false`) means API audit events stay local and may be lost on node rotation
+- **No log retention policy** means ClusterLogging/Elasticsearch uses defaults — logs may be deleted before investigation windows close
+- **LokiStack not installed** (when expected) or global retention not configured means no guaranteed log retention period
 - **No alert rules** or **only default receivers** means the cluster cannot notify on anomalous usage
 - Cross-reference alerting rules with Alertmanager receivers — rules without receivers fire silently
 - Cross-reference with `export-apiserver-console-access.sh` which also reports the audit profile level
@@ -1264,4 +1277,6 @@ DEBUG=true ./scripts/export-oauth-external-auth.sh
 | **Enterprise Secrets Integration** | `export-secrets-integration.sh` |
 | **Shared Responsibility Model** | `export-shared-responsibility-model.sh` |
 | **OpenShift Usage Monitoring** | `export-monitoring-audit-logging.sh` |
+| **Centralized Logging, Auditing & Retention** | `export-monitoring-audit-logging.sh` |
+| **Cluster Audit Logging** | `export-monitoring-audit-logging.sh`, `export-apiserver-console-access.sh` |
 | **Configuration Drift Detection** | `export-configuration-drift-status.sh`, `export-patch-lifecycle.sh` |
