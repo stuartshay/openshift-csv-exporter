@@ -42,6 +42,7 @@ Example:
 - `secrets integration` — discovers enterprise secrets providers (External Secrets Operator, Secrets Store CSI Driver, HashiCorp Vault, CyberArk Conjur) and summarizes native Kubernetes secrets by type
 - `shared responsibility model` — namespace-level tenant boundary controls: project request template, namespace ownership labels, ResourceQuotas, LimitRanges, NetworkPolicies, and namespace RoleBindings
 - `monitoring audit logging` — observability and audit logging: monitoring operator health, cluster monitoring config, user workload monitoring, Datadog integration, cluster logging, log forwarding, alerting rules, and Alertmanager receivers
+- `configuration drift status` — configuration drift signals: ArgoCD sync drift, Flux reconciliation status, Compliance Operator scan results, node version consistency, and operator version consistency
 
 See [`scripts/README.md`](scripts/README.md) for full column details and usage.
 
@@ -74,6 +75,7 @@ See [`scripts/README.md`](scripts/README.md) for full column details and usage.
 | **Enterprise Secrets Integration** | `export-secrets-integration.sh` |
 | **Shared Responsibility Model** | `export-shared-responsibility-model.sh` |
 | **OpenShift Usage Monitoring** | `export-monitoring-audit-logging.sh` |
+| **Configuration Drift Detection** | `export-configuration-drift-status.sh`, `export-patch-lifecycle.sh` |
 
 ## Requirements
 

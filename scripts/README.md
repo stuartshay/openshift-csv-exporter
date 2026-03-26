@@ -1125,6 +1125,90 @@ oc get secret alertmanager-main -n openshift-monitoring -o json
 
 ---
 
+## `export-configuration-drift-status.sh`
+
+Exports configuration drift signals across multiple detection sources: ArgoCD sync drift, Flux reconciliation status, Compliance Operator scan results, node version consistency, and operator version consistency.
+
+### Commands Used
+
+```bash
+oc get crd applications.argoproj.io
+oc get applications.argoproj.io -A -o json
+oc get crd helmreleases.helm.toolkit.fluxcd.io
+oc get crd kustomizations.kustomize.toolkit.fluxcd.io
+oc get helmreleases.helm.toolkit.fluxcd.io -A -o json
+oc get kustomizations.kustomize.toolkit.fluxcd.io -A -o json
+oc get crd compliancescans.compliance.openshift.io
+oc get compliancescans -A -o json
+oc get compliancecheckresults -A -o json
+oc get nodes -o json
+oc get clusteroperators -o json
+```
+
+### Output File
+
+`configuration-drift-status-<cluster>-<timestamp>.csv`
+
+### Columns
+
+| Column | Description |
+|---|---|
+| `cluster_name` | Name of the OpenShift cluster |
+| `cluster_context` | Current kube context |
+| `cluster_server` | API server URL |
+| `record_type` | One of: `gitops_summary`, `gitops_drift`, `gitops_degraded`, `flux_summary`, `flux_drift`, `compliance_scan`, `compliance_results_summary`, `compliance_fail`, `node_consistency`, `node_version_drift`, `operator_consistency`, `operator_version_drift`, `operator_degraded` |
+| `component_name` | Component or resource name (e.g., `ArgoCD`, app name, node name, operator name) |
+| `status` | Sync status, health state, or version count |
+| `namespace` | Namespace where the component lives |
+| `detail_1` | Component-specific detail (see below) |
+| `detail_2` | Component-specific detail |
+| `detail_3` | Component-specific detail |
+| `detail_4` | Component-specific detail |
+
+### Record Types and Details
+
+| Record Type | detail_1 | detail_2 | detail_3 | detail_4 |
+|---|---|---|---|---|
+| `gitops_summary` | apps:N;synced:N;out_of_sync:N;unknown:N | healthy:N;degraded:N | — | — |
+| `gitops_drift` | repo URL | path | health status | sync policy |
+| `gitops_degraded` | sync status | health message | — | — |
+| `flux_summary` | ready:N;not_ready:N | — | — | — |
+| `flux_drift` | type (HelmRelease/Kustomization) | chart or path | condition message | — |
+| `compliance_scan` | phase | profile | content image | — |
+| `compliance_results_summary` | pass:N;fail:N | manual:N;error:N | other:N | — |
+| `compliance_fail` | severity | scan name | description (truncated) | — |
+| `node_consistency` | versions or images list | node count | — | — |
+| `node_version_drift` | kubelet version | majority version | OS image | node role |
+| `operator_consistency` | versions list | majority version | operator count | — |
+| `operator_version_drift` | version | majority version | degraded status | progressing status |
+| `operator_degraded` | version | degraded message | — | — |
+
+### Console Warnings
+
+| Warning | Meaning |
+|---|---|
+| WARNING: N ArgoCD applications are OutOfSync | GitOps-managed resources have drifted from git |
+| WARNING: N Flux resources are not reconciled | Flux HelmReleases or Kustomizations failed to apply |
+| WARNING: N compliance checks FAILED | Drift from security compliance baseline detected |
+| WARNING: N different kubelet versions detected | Nodes not at the same Kubernetes version |
+| WARNING: N different OS images detected | Nodes at different RHCOS versions |
+| WARNING: N different operator versions detected | Cluster upgrade may be in-progress or stalled |
+| ERROR: N ClusterOperators are Degraded | Misconfigured components (K09) — operator health issue |
+| CRITICAL: No GitOps and no Compliance Operator | No drift detection tooling installed |
+
+**What auditors should look for:**
+
+- **ArgoCD OutOfSync apps** indicate live cluster state has drifted from the declared git source of truth — investigate manual changes
+- **ArgoCD apps with manual sync policy** cannot self-heal drift; prefer `automated` sync with `selfHeal: true`
+- **Flux NotReady resources** mean desired state from Helm charts or kustomize overlays is not applied
+- **Compliance FAIL results** represent specific CIS/NIST checks that the cluster does not pass — cross-reference with `export-governance-policy-ecosystem.sh`
+- **Multiple kubelet versions** across nodes means an upgrade is incomplete or stalled — cross-reference with `export-patch-lifecycle.sh` MachineConfigPool status
+- **Multiple operator versions** means a cluster upgrade has not fully rolled out — check for `Progressing` operators
+- **Degraded operators** are a K09 misconfiguration signal — the operator cannot achieve desired state
+- **No GitOps tooling and no Compliance Operator** means the cluster has no automated drift detection — manual configuration changes go undetected
+
+---
+
 ## Usage Examples
 
 Run all reports at once:
@@ -1180,3 +1264,4 @@ DEBUG=true ./scripts/export-oauth-external-auth.sh
 | **Enterprise Secrets Integration** | `export-secrets-integration.sh` |
 | **Shared Responsibility Model** | `export-shared-responsibility-model.sh` |
 | **OpenShift Usage Monitoring** | `export-monitoring-audit-logging.sh` |
+| **Configuration Drift Detection** | `export-configuration-drift-status.sh`, `export-patch-lifecycle.sh` |
