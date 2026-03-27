@@ -1321,6 +1321,103 @@ oc get ds -A -o json
 
 ---
 
+### export-network-security-mesh.sh
+
+Exports network security posture and service mesh enforcement: cluster network configuration, egress firewalls, exposed services (NodePort/LoadBalancer), IngressControllers, Route TLS summary, Gateway API detection, and service mesh (OSSM/Istio) with mTLS and sidecar injection detection.
+
+```bash
+./scripts/export-network-security-mesh.sh
+```
+
+**OC commands:**
+
+```bash
+oc get network.config.openshift.io cluster -o json
+oc get network.operator.openshift.io cluster -o json
+oc get egressfirewalls.k8s.ovn.org -A -o json
+oc get egressnetworkpolicies.network.openshift.io -A -o json
+oc get services -A -o json
+oc get ingresscontrollers -n openshift-ingress-operator -o json
+oc get routes -A -o json
+oc get gateways.gateway.networking.k8s.io -A -o json
+oc get httproutes.gateway.networking.k8s.io -A -o json
+oc get servicemeshcontrolplanes.maistra.io -A -o json
+oc get servicemeshmemberrolls.maistra.io -A -o json
+oc get peerauthentications.security.istio.io -A -o json
+oc get destinationrules.networking.istio.io -A -o json
+oc get namespaces -o json
+oc get kialis.kiali.io -A -o json
+oc get jaegers.jaegertracing.io -A -o json
+```
+
+**Output file:** `network-security-mesh-<cluster>-<timestamp>.csv`
+
+| Column | Description |
+|---|---|
+| `record_type` | Row category (see Record Types below) |
+| `component_name` | Resource name or identifier |
+| `status` | Current state or condition summary |
+| `namespace` | Kubernetes namespace (if applicable) |
+| `detail_1` | Primary configuration details |
+| `detail_2` | Secondary configuration details |
+| `detail_3` | Additional metadata |
+| `detail_4` | Reserved for extra context |
+
+### Record Types and Details — Network Security & Mesh
+
+| Record Type | detail_1 | detail_2 | detail_3 | detail_4 |
+|---|---|---|---|---|
+| `cluster_network` | Cluster CIDRs | Host prefixes | Service CIDRs | ExternalIP policy |
+| `network_operator` | Default network type | Additional networks count | — | — |
+| `egress_firewall` | Rule count | Allow/deny counts | DNS rule count | — |
+| `egress_network_policy` | Rule count | Allow/deny counts | Type (legacy_sdn) | — |
+| `service_nodeport` | Ports (port:nodePort/proto) | Selector labels | External IPs | — |
+| `service_loadbalancer` | Ports (port/proto) | Load balancer IP/hostname | External traffic policy | — |
+| `exposed_services_summary` | Total exposed count | — | — | — |
+| `ingress_controller` | Domain and publish strategy | TLS profile and min version | Replicas and route admission | Wildcard policy |
+| `route_tls_summary` | Edge/passthrough/reencrypt counts | No-TLS count | Insecure allow/redirect/none | — |
+| `route_no_tls` | Hostname | — | — | — |
+| `route_insecure_allow` | Hostname | TLS termination type | — | — |
+| `gateway` | Gateway class | Listener and TLS counts | — | — |
+| `gateway_httproute_summary` | — | — | — | — |
+| `service_mesh_control_plane` | Version | Data-plane and control-plane mTLS | Ready reason | — |
+| `service_mesh_member_roll` | Spec members | Configured members | — | — |
+| `peer_authentication_summary` | STRICT/PERMISSIVE/DISABLE counts | — | — | — |
+| `peer_authentication` | — (non-STRICT individual entries) | — | — | — |
+| `destination_rule_summary` | ISTIO_MUTUAL/MUTUAL counts | SIMPLE/DISABLE/unset counts | — | — |
+| `sidecar_injection` | — | — | — | — |
+| `mesh_observability` | CRD presence | — | — | — |
+| `summary` | Network type | Egress firewall count | Exposed service count | Mesh installed |
+
+### Console Warnings — Network Security & Mesh
+
+| Warning | Meaning |
+|---|---|
+| Routes have NO TLS configured | Unencrypted traffic — data in transit is not protected |
+| Routes allow insecure (HTTP) traffic | HTTP is permitted alongside HTTPS — potential downgrade attack |
+| No EgressFirewall or EgressNetworkPolicy found | Egress traffic is unrestricted — pods can reach any external endpoint |
+| No service mesh (OSSM/Istio) detected | No mTLS enforcement between services — east-west traffic is unencrypted |
+| No ExternalIP policy configured | External IPs may be assignable without restriction |
+
+**What auditors should look for:**
+
+- **Network type** should be `OVNKubernetes` on OCP 4.18 — `OpenShiftSDN` is deprecated
+- **No egress firewalls** means pods can reach any external endpoint — check whether this is compensated by external firewalls
+- **NodePort services** expose application ports on every node — verify each is intentional and authorized
+- **LoadBalancer services** provision cloud load balancers — check for services in tenant namespaces that should use Routes instead
+- **IngressController TLS profile** should be `Intermediate` or `Custom` with TLS 1.2+ — `Old` allows TLS 1.0/1.1
+- **Routes with no TLS** serve plaintext HTTP — should be TLS-terminated at minimum (`edge`, `reencrypt`, or `passthrough`)
+- **Routes allowing insecure traffic** (insecureEdgeTerminationPolicy=Allow) permit HTTP alongside HTTPS
+- **Gateway API** presence indicates newer ingress model — check both OCP Routes and Gateway API for complete picture
+- **No OSSM/Istio** means inter-service communication is not mTLS-protected — verify network policies provide equivalent segmentation
+- **PeerAuthentication mode** should be `STRICT` for mTLS enforcement — `PERMISSIVE` accepts plaintext
+- **DestinationRule TLS mode** `DISABLE` turns off mTLS for specific destinations — verify this is intentional
+- **Sidecar injection** labels on namespaces indicate mesh enrollment — unlabeled namespaces are not mesh-protected
+- Cross-reference with `export-shared-responsibility-model.sh` for per-namespace NetworkPolicy coverage
+- Cross-reference with `export-platform-guardrails.sh` for external IP policy validation
+
+---
+
 ## Usage Examples
 
 Run all reports at once:
@@ -1381,3 +1478,5 @@ DEBUG=true ./scripts/export-oauth-external-auth.sh
 | **Configuration Drift Detection** | `export-configuration-drift-status.sh`, `export-patch-lifecycle.sh` |
 | **Vulnerability Scanning** | `export-vulnerability-runtime-detection.sh`, `export-governance-policy-ecosystem.sh` |
 | **Runtime Threat Detection** | `export-vulnerability-runtime-detection.sh` |
+| **Network Port Restriction** | `export-network-security-mesh.sh`, `export-shared-responsibility-model.sh` |
+| **Service Mesh Enforcement** | `export-network-security-mesh.sh` |

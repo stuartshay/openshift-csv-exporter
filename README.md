@@ -44,6 +44,7 @@ Example:
 - `monitoring audit logging` — observability, audit logging, and centralized log retention: monitoring operator health, cluster monitoring config, user workload monitoring, Datadog integration, cluster logging, log forwarding with output TLS verification, audit log forwarding validation, LokiStack log retention, alerting rules, and Alertmanager receivers
 - `configuration drift status` — configuration drift signals: ArgoCD sync drift, Flux reconciliation status, Compliance Operator scan results, node version consistency, and operator version consistency
 - `vulnerability runtime detection` — vulnerability scanning and runtime threat detection: ACS/StackRox scanner and collector config, Compliance Operator scan settings, image provenance controls, and third-party tool detection (Falco, NeuVector, Sysdig, CrowdStrike, Prisma, Aqua)
+- `network security mesh` — network security posture and service mesh enforcement: cluster network config, egress firewalls, exposed services (NodePort/LoadBalancer), IngressControllers, Route TLS summary, Gateway API, and OSSM/Istio service mesh with mTLS and sidecar injection detection
 
 See [`scripts/README.md`](scripts/README.md) for full column details and usage.
 
@@ -81,6 +82,8 @@ See [`scripts/README.md`](scripts/README.md) for full column details and usage.
 | **Configuration Drift Detection** | `export-configuration-drift-status.sh`, `export-patch-lifecycle.sh` |
 | **Vulnerability Scanning** | `export-vulnerability-runtime-detection.sh`, `export-governance-policy-ecosystem.sh` |
 | **Runtime Threat Detection** | `export-vulnerability-runtime-detection.sh` |
+| **Network Port Restriction** | `export-network-security-mesh.sh`, `export-shared-responsibility-model.sh` |
+| **Service Mesh Enforcement** | `export-network-security-mesh.sh` |
 
 ## Requirements
 
