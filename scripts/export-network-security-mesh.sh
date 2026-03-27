@@ -53,6 +53,7 @@ LB_COUNT=0
 IPSEC_MODE="Disabled"
 ANP_COUNT=0
 BANP_COUNT=0
+BANP_DENY_ALL="false"
 
 ###############################################################################
 # Section 1 — Cluster Network Configuration
@@ -297,6 +298,12 @@ if [ "$BANP_CRD" = "true" ]; then
         "subject:${BANP_SUBJECT}" "ingressRules:${INGRESS_RULES};egressRules:${EGRESS_RULES}" \
         "ingressActions:${INGRESS_ACTIONS}" "egressActions:${EGRESS_ACTIONS}"
     done
+
+    # OCP.36 — Check if any BANP enforces deny-all (default deny for inter-project traffic)
+    BANP_HAS_DENY=$(echo "$BANP_JSON" | jq '[.items[] | select(.spec.ingress[]?.action == "Deny" or .spec.egress[]?.action == "Deny")] | length')
+    if [ "$BANP_HAS_DENY" -gt 0 ]; then
+      BANP_DENY_ALL="true"
+    fi
   else
     write_row "baseline_admin_network_policy" "none" "no_policies" "" "crd:true" "" "" ""
   fi
@@ -306,6 +313,21 @@ else
 fi
 
 echo "[$(date +%H:%M:%S)] [$LABEL] AdminNetworkPolicy section done."
+
+# OCP.36 — Default deny posture summary
+echo "[$(date +%H:%M:%S)] [$LABEL] Evaluating default-deny posture (OCP.36)..."
+DEFAULT_DENY_POSTURE="none"
+if [ "$BANP_DENY_ALL" = "true" ]; then
+  DEFAULT_DENY_POSTURE="banp_deny"
+elif [ "$ANP_COUNT" -gt 0 ]; then
+  DEFAULT_DENY_POSTURE="anp_only"
+fi
+
+write_row "default_deny_posture" "cluster" "posture:${DEFAULT_DENY_POSTURE}" "" \
+  "banpDenyAll:${BANP_DENY_ALL}" "adminNetworkPolicies:${ANP_COUNT}" \
+  "baselineANP:${BANP_COUNT}" ""
+
+echo "[$(date +%H:%M:%S)] [$LABEL] Default-deny posture check done."
 
 ###############################################################################
 # Section 4 — Exposed Services (NodePort + LoadBalancer)
@@ -687,6 +709,7 @@ echo "│ Multus (NAD CRD)          : $NAD_CRD"
 echo "│ NetworkAttachmentDefs     : $NAD_COUNT"
 echo "│ AdminNetworkPolicies      : $ANP_COUNT"
 echo "│ BaselineAdminNetworkPol   : $BANP_COUNT"
+echo "│ BANP deny-all baseline    : $BANP_DENY_ALL"
 echo "│ Egress firewalls          : $EGRESS_FIREWALL_COUNT"
 echo "│ NodePort services         : $NODEPORT_COUNT"
 echo "│ LoadBalancer services     : $LB_COUNT"
@@ -731,6 +754,10 @@ fi
 
 if [ "$ANP_COUNT" -eq 0 ] && [ "$BANP_COUNT" -eq 0 ]; then
   echo -e "${RED}[$LABEL] WARNING: No AdminNetworkPolicy or BaselineAdminNetworkPolicy found — no cluster-scoped network segmentation${NC}"
+fi
+
+if [ "$BANP_DENY_ALL" = "false" ]; then
+  echo -e "${RED}[$LABEL] WARNING: No BaselineAdminNetworkPolicy with Deny action found — no cluster-wide default-deny posture for inter-project traffic (OCP.36)${NC}"
 fi
 
 # ── Finish ───────────────────────────────────────────────────────────────────

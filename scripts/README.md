@@ -1323,7 +1323,7 @@ oc get ds -A -o json
 
 ### export-network-security-mesh.sh
 
-Exports network security posture and service mesh enforcement: cluster network configuration, IPsec/transit encryption, Multus NetworkAttachmentDefinitions (CNI plugin usage), egress firewalls, AdminNetworkPolicy / BaselineAdminNetworkPolicy (cluster-scoped network segmentation), exposed services (NodePort/LoadBalancer), IngressControllers, Route TLS summary, Gateway API detection, and service mesh (OSSM/Istio) with mTLS and sidecar injection detection.
+Exports network security posture and service mesh enforcement: cluster network configuration, IPsec/transit encryption, Multus NetworkAttachmentDefinitions (CNI plugin usage), egress firewalls, AdminNetworkPolicy / BaselineAdminNetworkPolicy (cluster-scoped network segmentation), default-deny posture for inter-project traffic, exposed services (NodePort/LoadBalancer), IngressControllers, Route TLS summary, Gateway API detection, and service mesh (OSSM/Istio) with mTLS and sidecar injection detection.
 
 ```bash
 ./scripts/export-network-security-mesh.sh
@@ -1379,6 +1379,7 @@ oc get jaegers.jaegertracing.io -A -o json
 | `egress_network_policy` | Rule count | Allow/deny counts | Type (legacy_sdn) | — |
 | `admin_network_policy` | Subject (namespace/pod selector) | Ingress/egress rule counts | Ingress actions | Egress actions |
 | `baseline_admin_network_policy` | Subject (namespace/pod selector) | Ingress/egress rule counts | Ingress actions | Egress actions |
+| `default_deny_posture` | BANP deny-all detected (true/false) | AdminNetworkPolicy count | BaselineANP count | — |
 | `service_nodeport` | Ports (port:nodePort/proto) | Selector labels | External IPs | — |
 | `service_loadbalancer` | Ports (port/proto) | Load balancer IP/hostname | External traffic policy | — |
 | `exposed_services_summary` | Total exposed count | — | — | — |
@@ -1409,6 +1410,7 @@ oc get jaegers.jaegertracing.io -A -o json
 | No ExternalIP policy configured | External IPs may be assignable without restriction |
 | IPsec is disabled | Pod-to-pod traffic is not encrypted at the network layer |
 | No AdminNetworkPolicy or BaselineAdminNetworkPolicy found | No cluster-scoped network segmentation policies |
+| No BaselineAdminNetworkPolicy with Deny action found | No cluster-wide default-deny posture for inter-project traffic (OCP.36) |
 
 **What auditors should look for:**
 
@@ -1429,6 +1431,7 @@ oc get jaegers.jaegertracing.io -A -o json
 - **IPsec mode** should be `Full` for pod-to-pod encryption — `Disabled` means traffic between nodes is unencrypted
 - **AdminNetworkPolicy** provides cluster-scoped network segmentation that overrides namespace NetworkPolicies — verify priority ordering
 - **BaselineAdminNetworkPolicy** is the lowest-priority fallback — use for cluster-wide default-deny or default-allow baselines
+- **Default deny posture** (`default_deny_posture` record) — if `banpDenyAll` is `false` and no ANPs exist, inter-project traffic has no cluster-wide deny baseline; cross-reference per-namespace NetworkPolicy default-deny in `export-shared-responsibility-model.sh`
 - Cross-reference with `export-shared-responsibility-model.sh` for per-namespace NetworkPolicy counts and default-deny status
 - **Multus / NetworkAttachmentDefinitions** indicate secondary network interfaces — verify each NAD is authorized and its CNI type is appropriate
 - **No NADs** with Multus present may indicate misconfiguration — additional networks configured in the operator should have corresponding NADs
@@ -1499,4 +1502,5 @@ DEBUG=true ./scripts/export-oauth-external-auth.sh
 | **Network Segmentation** | `export-network-security-mesh.sh`, `export-shared-responsibility-model.sh` |
 | **CNI Plugin Usage** | `export-network-security-mesh.sh` |
 | **Encryption in Transit** | `export-network-security-mesh.sh`, `export-apiserver-console-access.sh` |
+| **Default Deny for Inter-Project Traffic** | `export-network-security-mesh.sh`, `export-shared-responsibility-model.sh` |
 | **Service Mesh Enforcement** | `export-network-security-mesh.sh` |
