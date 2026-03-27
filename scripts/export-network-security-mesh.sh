@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Description: Exports network security posture — cluster network config, egress firewalls, exposed services (NodePort/LoadBalancer), IngressControllers, Route TLS summary, Gateway API, and service mesh (OSSM/Istio) with mTLS and sidecar injection detection
-# Audit Area:  Network Port Restriction / Service Mesh Enforcement
+# Description: Exports network security posture — cluster network config, IPsec/transit encryption, egress firewalls, AdminNetworkPolicy, exposed services (NodePort/LoadBalancer), IngressControllers, Route TLS summary, Gateway API, and service mesh (OSSM/Istio) with mTLS and sidecar injection detection
+# Audit Area:  Network Port Restriction / Service Mesh Enforcement / Network Segmentation / Encryption in Transit
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -50,6 +50,9 @@ EGRESS_FIREWALL_COUNT=0
 EXPOSED_SVC_COUNT=0
 NODEPORT_COUNT=0
 LB_COUNT=0
+IPSEC_MODE="Disabled"
+ANP_COUNT=0
+BANP_COUNT=0
 
 ###############################################################################
 # Section 1 — Cluster Network Configuration
@@ -84,6 +87,24 @@ OPERATOR_CONDITIONS=$(echo "$NET_OPERATOR" | jq -r '[.status.conditions[]? | sel
 write_row "network_operator" "cluster" "conditions:${OPERATOR_CONDITIONS}" "" \
   "defaultNetType:${DEFAULT_NET_TYPE}" \
   "additionalNetworks:${ADDITIONAL_NETS}" "" ""
+
+# IPsec / transit encryption configuration (OVN-Kubernetes)
+echo "[$(date +%H:%M:%S)] [$LABEL] Checking IPsec / transit encryption..."
+IPSEC_MODE=$(echo "$NET_OPERATOR" | jq -r '.spec.defaultNetwork.ovnKubernetesConfig.ipsecConfig.mode // ""')
+if [ -z "$IPSEC_MODE" ]; then
+  IPSEC_EXISTS=$(echo "$NET_OPERATOR" | jq -r 'if .spec.defaultNetwork.ovnKubernetesConfig.ipsecConfig then "exists" else "disabled" end')
+  if [ "$IPSEC_EXISTS" = "exists" ]; then
+    IPSEC_MODE="Enabled"
+  else
+    IPSEC_MODE="Disabled"
+  fi
+fi
+GENEVE_PORT=$(echo "$NET_OPERATOR" | jq -r '.spec.defaultNetwork.ovnKubernetesConfig.genevePort // "default(6081)"')
+ROUTING_VIA_HOST=$(echo "$NET_OPERATOR" | jq -r '.spec.defaultNetwork.ovnKubernetesConfig.gatewayConfig.routingViaHost // false')
+MTU=$(echo "$NET_OPERATOR" | jq -r '.spec.defaultNetwork.ovnKubernetesConfig.mtu // "default"')
+
+write_row "network_encryption" "cluster" "ipsec:${IPSEC_MODE}" "" \
+  "genevePort:${GENEVE_PORT}" "routingViaHost:${ROUTING_VIA_HOST}" "mtu:${MTU}" ""
 
 echo "[$(date +%H:%M:%S)] [$LABEL] Cluster network config done."
 
@@ -159,7 +180,93 @@ fi
 echo "[$(date +%H:%M:%S)] [$LABEL] Egress firewall section done."
 
 ###############################################################################
-# Section 3 — Exposed Services (NodePort + LoadBalancer)
+# Section 3 — AdminNetworkPolicy / BaselineAdminNetworkPolicy
+###############################################################################
+echo "[$(date +%H:%M:%S)] [$LABEL] Checking AdminNetworkPolicy..."
+
+# AdminNetworkPolicy (cluster-scoped, OCP 4.18+ OVN-Kubernetes)
+ANP_CRD="false"
+if oc get crd adminnetworkpolicies.policy.networking.k8s.io > /dev/null 2>&1; then
+  ANP_CRD="true"
+fi
+
+if [ "$ANP_CRD" = "true" ]; then
+  echo "[$(date +%H:%M:%S)] [$LABEL] Fetching AdminNetworkPolicies..."
+  ANP_JSON=$(oc get adminnetworkpolicies.policy.networking.k8s.io -o json 2>/dev/null | tr -d '\r' || echo '{"items":[]}')
+  ANP_COUNT=$(echo "$ANP_JSON" | jq '.items | length')
+  echo "[$(date +%H:%M:%S)] [$LABEL] Found $ANP_COUNT AdminNetworkPolicy(ies)"
+
+  if [ "$ANP_COUNT" -gt 0 ]; then
+    echo "$ANP_JSON" | jq -c '.items[]' | while IFS= read -r item; do
+      ANP_NAME=$(echo "$item" | jq -r '.metadata.name // ""')
+      ANP_PRIORITY=$(echo "$item" | jq -r '.spec.priority // ""')
+      ANP_SUBJECT=$(echo "$item" | jq -r '
+        if .spec.subject.namespaces.matchLabels then
+          "namespaces:" + ([.spec.subject.namespaces.matchLabels | to_entries[] | "\(.key)=\(.value)"] | join(";"))
+        elif .spec.subject.namespaces then "namespaces:all"
+        elif .spec.subject.pods then "pods"
+        else "unknown"
+        end // ""')
+      INGRESS_RULES=$(echo "$item" | jq '[.spec.ingress[]?] | length')
+      EGRESS_RULES=$(echo "$item" | jq '[.spec.egress[]?] | length')
+      INGRESS_ACTIONS=$(echo "$item" | jq -r '[.spec.ingress[]?.action] | unique | join(";") // ""')
+      EGRESS_ACTIONS=$(echo "$item" | jq -r '[.spec.egress[]?.action] | unique | join(";") // ""')
+
+      write_row "admin_network_policy" "$ANP_NAME" "priority:${ANP_PRIORITY}" "" \
+        "subject:${ANP_SUBJECT}" "ingressRules:${INGRESS_RULES};egressRules:${EGRESS_RULES}" \
+        "ingressActions:${INGRESS_ACTIONS}" "egressActions:${EGRESS_ACTIONS}"
+    done
+  else
+    write_row "admin_network_policy" "none" "no_policies" "" "crd:true" "" "" ""
+  fi
+else
+  echo "[$(date +%H:%M:%S)] [$LABEL] AdminNetworkPolicy CRD not found"
+  write_row "admin_network_policy" "none" "crd_not_found" "" "" "" "" ""
+fi
+
+# BaselineAdminNetworkPolicy (cluster-scoped, lowest priority fallback)
+BANP_CRD="false"
+if oc get crd baselineadminnetworkpolicies.policy.networking.k8s.io > /dev/null 2>&1; then
+  BANP_CRD="true"
+fi
+
+if [ "$BANP_CRD" = "true" ]; then
+  echo "[$(date +%H:%M:%S)] [$LABEL] Fetching BaselineAdminNetworkPolicies..."
+  BANP_JSON=$(oc get baselineadminnetworkpolicies.policy.networking.k8s.io -o json 2>/dev/null | tr -d '\r' || echo '{"items":[]}')
+  BANP_COUNT=$(echo "$BANP_JSON" | jq '.items | length')
+  echo "[$(date +%H:%M:%S)] [$LABEL] Found $BANP_COUNT BaselineAdminNetworkPolicy(ies)"
+
+  if [ "$BANP_COUNT" -gt 0 ]; then
+    echo "$BANP_JSON" | jq -c '.items[]' | while IFS= read -r item; do
+      BANP_NAME=$(echo "$item" | jq -r '.metadata.name // ""')
+      BANP_SUBJECT=$(echo "$item" | jq -r '
+        if .spec.subject.namespaces.matchLabels then
+          "namespaces:" + ([.spec.subject.namespaces.matchLabels | to_entries[] | "\(.key)=\(.value)"] | join(";"))
+        elif .spec.subject.namespaces then "namespaces:all"
+        elif .spec.subject.pods then "pods"
+        else "unknown"
+        end // ""')
+      INGRESS_RULES=$(echo "$item" | jq '[.spec.ingress[]?] | length')
+      EGRESS_RULES=$(echo "$item" | jq '[.spec.egress[]?] | length')
+      INGRESS_ACTIONS=$(echo "$item" | jq -r '[.spec.ingress[]?.action] | unique | join(";") // ""')
+      EGRESS_ACTIONS=$(echo "$item" | jq -r '[.spec.egress[]?.action] | unique | join(";") // ""')
+
+      write_row "baseline_admin_network_policy" "$BANP_NAME" "configured" "" \
+        "subject:${BANP_SUBJECT}" "ingressRules:${INGRESS_RULES};egressRules:${EGRESS_RULES}" \
+        "ingressActions:${INGRESS_ACTIONS}" "egressActions:${EGRESS_ACTIONS}"
+    done
+  else
+    write_row "baseline_admin_network_policy" "none" "no_policies" "" "crd:true" "" "" ""
+  fi
+else
+  echo "[$(date +%H:%M:%S)] [$LABEL] BaselineAdminNetworkPolicy CRD not found"
+  write_row "baseline_admin_network_policy" "none" "crd_not_found" "" "" "" "" ""
+fi
+
+echo "[$(date +%H:%M:%S)] [$LABEL] AdminNetworkPolicy section done."
+
+###############################################################################
+# Section 4 — Exposed Services (NodePort + LoadBalancer)
 ###############################################################################
 echo "[$(date +%H:%M:%S)] [$LABEL] Fetching exposed services (NodePort + LoadBalancer)..."
 
@@ -210,7 +317,7 @@ write_row "exposed_services_summary" "cluster" "nodePort:${NODEPORT_COUNT};loadB
 echo "[$(date +%H:%M:%S)] [$LABEL] Exposed services section done."
 
 ###############################################################################
-# Section 4 — IngressControllers
+# Section 5 — IngressControllers
 ###############################################################################
 echo "[$(date +%H:%M:%S)] [$LABEL] Fetching IngressControllers..."
 
@@ -243,7 +350,7 @@ fi
 echo "[$(date +%H:%M:%S)] [$LABEL] IngressControllers done."
 
 ###############################################################################
-# Section 5 — Route TLS summary
+# Section 6 — Route TLS summary
 ###############################################################################
 echo "[$(date +%H:%M:%S)] [$LABEL] Fetching Route TLS summary..."
 
@@ -293,7 +400,7 @@ fi
 echo "[$(date +%H:%M:%S)] [$LABEL] Route TLS summary done."
 
 ###############################################################################
-# Section 6 — Gateway API
+# Section 7 — Gateway API
 ###############################################################################
 echo "[$(date +%H:%M:%S)] [$LABEL] Checking Gateway API..."
 
@@ -346,7 +453,7 @@ fi
 echo "[$(date +%H:%M:%S)] [$LABEL] Gateway API section done."
 
 ###############################################################################
-# Section 7 — Service Mesh (OSSM / Istio)
+# Section 8 — Service Mesh (OSSM / Istio)
 ###############################################################################
 echo "[$(date +%H:%M:%S)] [$LABEL] Checking Service Mesh..."
 
@@ -512,7 +619,7 @@ fi
 echo "[$(date +%H:%M:%S)] [$LABEL] Service Mesh section done."
 
 ###############################################################################
-# Section 8 — Summary & critical warnings
+# Section 9 — Summary & critical warnings
 ###############################################################################
 echo "[$(date +%H:%M:%S)] [$LABEL] Writing summary..."
 
@@ -522,11 +629,20 @@ write_row "summary" "network_security" "complete" "" \
   "exposedServices:${EXPOSED_SVC_COUNT}" \
   "meshInstalled:${MESH_INSTALLED}"
 
+write_row "transit_encryption_summary" "cluster" "ipsec:${IPSEC_MODE}" "" \
+  "routesNoTLS:${NO_TLS_COUNT};routesInsecureAllow:${INSECURE_ALLOW}" \
+  "adminNetworkPolicies:${ANP_COUNT};baselineANP:${BANP_COUNT}" \
+  "meshInstalled:${MESH_INSTALLED}" \
+  "networkType:${NET_TYPE}"
+
 echo ""
 echo "┌──────────────────────────────────────────────────────┐"
 echo "│ Network Security & Service Mesh Summary              │"
 echo "├──────────────────────────────────────────────────────┤"
 echo "│ Network type              : $NET_TYPE"
+echo "│ IPsec mode                : $IPSEC_MODE"
+echo "│ AdminNetworkPolicies      : $ANP_COUNT"
+echo "│ BaselineAdminNetworkPol   : $BANP_COUNT"
 echo "│ Egress firewalls          : $EGRESS_FIREWALL_COUNT"
 echo "│ NodePort services         : $NODEPORT_COUNT"
 echo "│ LoadBalancer services     : $LB_COUNT"
@@ -563,6 +679,14 @@ fi
 
 if [ "$EXTERNAL_IP_POLICY" = "none" ]; then
   echo -e "${RED}[$LABEL] WARNING: No ExternalIP policy configured — external IPs may be assignable without restriction${NC}"
+fi
+
+if [ "$IPSEC_MODE" = "Disabled" ]; then
+  echo -e "${RED}[$LABEL] WARNING: IPsec is disabled — pod-to-pod traffic is not encrypted at the network layer${NC}"
+fi
+
+if [ "$ANP_COUNT" -eq 0 ] && [ "$BANP_COUNT" -eq 0 ]; then
+  echo -e "${RED}[$LABEL] WARNING: No AdminNetworkPolicy or BaselineAdminNetworkPolicy found — no cluster-scoped network segmentation${NC}"
 fi
 
 # ── Finish ───────────────────────────────────────────────────────────────────

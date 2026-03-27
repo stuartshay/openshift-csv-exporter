@@ -1323,7 +1323,7 @@ oc get ds -A -o json
 
 ### export-network-security-mesh.sh
 
-Exports network security posture and service mesh enforcement: cluster network configuration, egress firewalls, exposed services (NodePort/LoadBalancer), IngressControllers, Route TLS summary, Gateway API detection, and service mesh (OSSM/Istio) with mTLS and sidecar injection detection.
+Exports network security posture and service mesh enforcement: cluster network configuration, IPsec/transit encryption, egress firewalls, AdminNetworkPolicy / BaselineAdminNetworkPolicy (cluster-scoped network segmentation), exposed services (NodePort/LoadBalancer), IngressControllers, Route TLS summary, Gateway API detection, and service mesh (OSSM/Istio) with mTLS and sidecar injection detection.
 
 ```bash
 ./scripts/export-network-security-mesh.sh
@@ -1336,6 +1336,8 @@ oc get network.config.openshift.io cluster -o json
 oc get network.operator.openshift.io cluster -o json
 oc get egressfirewalls.k8s.ovn.org -A -o json
 oc get egressnetworkpolicies.network.openshift.io -A -o json
+oc get adminnetworkpolicies.policy.networking.k8s.io -o json
+oc get baselineadminnetworkpolicies.policy.networking.k8s.io -o json
 oc get services -A -o json
 oc get ingresscontrollers -n openshift-ingress-operator -o json
 oc get routes -A -o json
@@ -1369,8 +1371,11 @@ oc get jaegers.jaegertracing.io -A -o json
 |---|---|---|---|---|
 | `cluster_network` | Cluster CIDRs | Host prefixes | Service CIDRs | ExternalIP policy |
 | `network_operator` | Default network type | Additional networks count | — | — |
+| `network_encryption` | Geneve port | Routing via host | MTU | — |
 | `egress_firewall` | Rule count | Allow/deny counts | DNS rule count | — |
 | `egress_network_policy` | Rule count | Allow/deny counts | Type (legacy_sdn) | — |
+| `admin_network_policy` | Subject (namespace/pod selector) | Ingress/egress rule counts | Ingress actions | Egress actions |
+| `baseline_admin_network_policy` | Subject (namespace/pod selector) | Ingress/egress rule counts | Ingress actions | Egress actions |
 | `service_nodeport` | Ports (port:nodePort/proto) | Selector labels | External IPs | — |
 | `service_loadbalancer` | Ports (port/proto) | Load balancer IP/hostname | External traffic policy | — |
 | `exposed_services_summary` | Total exposed count | — | — | — |
@@ -1388,6 +1393,7 @@ oc get jaegers.jaegertracing.io -A -o json
 | `sidecar_injection` | — | — | — | — |
 | `mesh_observability` | CRD presence | — | — | — |
 | `summary` | Network type | Egress firewall count | Exposed service count | Mesh installed |
+| `transit_encryption_summary` | Routes no-TLS / insecure-allow counts | ANP / BANP counts | Mesh installed | Network type |
 
 ### Console Warnings — Network Security & Mesh
 
@@ -1398,6 +1404,8 @@ oc get jaegers.jaegertracing.io -A -o json
 | No EgressFirewall or EgressNetworkPolicy found | Egress traffic is unrestricted — pods can reach any external endpoint |
 | No service mesh (OSSM/Istio) detected | No mTLS enforcement between services — east-west traffic is unencrypted |
 | No ExternalIP policy configured | External IPs may be assignable without restriction |
+| IPsec is disabled | Pod-to-pod traffic is not encrypted at the network layer |
+| No AdminNetworkPolicy or BaselineAdminNetworkPolicy found | No cluster-scoped network segmentation policies |
 
 **What auditors should look for:**
 
@@ -1415,6 +1423,10 @@ oc get jaegers.jaegertracing.io -A -o json
 - **Sidecar injection** labels on namespaces indicate mesh enrollment — unlabeled namespaces are not mesh-protected
 - Cross-reference with `export-shared-responsibility-model.sh` for per-namespace NetworkPolicy coverage
 - Cross-reference with `export-platform-guardrails.sh` for external IP policy validation
+- **IPsec mode** should be `Full` for pod-to-pod encryption — `Disabled` means traffic between nodes is unencrypted
+- **AdminNetworkPolicy** provides cluster-scoped network segmentation that overrides namespace NetworkPolicies — verify priority ordering
+- **BaselineAdminNetworkPolicy** is the lowest-priority fallback — use for cluster-wide default-deny or default-allow baselines
+- Cross-reference with `export-shared-responsibility-model.sh` for per-namespace NetworkPolicy counts and default-deny status
 
 ---
 
@@ -1479,4 +1491,6 @@ DEBUG=true ./scripts/export-oauth-external-auth.sh
 | **Vulnerability Scanning** | `export-vulnerability-runtime-detection.sh`, `export-governance-policy-ecosystem.sh` |
 | **Runtime Threat Detection** | `export-vulnerability-runtime-detection.sh` |
 | **Network Port Restriction** | `export-network-security-mesh.sh`, `export-shared-responsibility-model.sh` |
+| **Network Segmentation** | `export-network-security-mesh.sh`, `export-shared-responsibility-model.sh` |
+| **Encryption in Transit** | `export-network-security-mesh.sh`, `export-apiserver-console-access.sh` |
 | **Service Mesh Enforcement** | `export-network-security-mesh.sh` |
