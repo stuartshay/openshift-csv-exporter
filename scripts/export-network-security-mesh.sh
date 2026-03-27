@@ -106,6 +106,48 @@ MTU=$(echo "$NET_OPERATOR" | jq -r '.spec.defaultNetwork.ovnKubernetesConfig.mtu
 write_row "network_encryption" "cluster" "ipsec:${IPSEC_MODE}" "" \
   "genevePort:${GENEVE_PORT}" "routingViaHost:${ROUTING_VIA_HOST}" "mtu:${MTU}" ""
 
+# Multus / NetworkAttachmentDefinition enumeration (OCP.34 — CNI Plugin Usage)
+echo "[$(date +%H:%M:%S)] [$LABEL] Checking Multus NetworkAttachmentDefinitions..."
+NAD_CRD="false"
+if oc get crd network-attachment-definitions.k8s.cni.cncf.io > /dev/null 2>&1; then
+  NAD_CRD="true"
+fi
+
+NAD_COUNT=0
+if [ "$NAD_CRD" = "true" ]; then
+  NAD_JSON=$(oc get network-attachment-definitions.k8s.cni.cncf.io -A -o json 2>/dev/null | tr -d '\r' || echo '{"items":[]}')
+  NAD_COUNT=$(echo "$NAD_JSON" | jq '.items | length')
+  echo "[$(date +%H:%M:%S)] [$LABEL] Found $NAD_COUNT NetworkAttachmentDefinition(s)"
+
+  if [ "$NAD_COUNT" -gt 0 ]; then
+    echo "$NAD_JSON" | jq -c '.items[]' | while IFS= read -r item; do
+      NAD_NAME=$(echo "$item" | jq -r '.metadata.name // ""')
+      NAD_NS=$(echo "$item" | jq -r '.metadata.namespace // ""')
+      # Extract CNI type from the embedded JSON config
+      NAD_CNI_TYPE=$(echo "$item" | jq -r '(.spec.config // "" | if . != "" then (fromjson? // {}) | .type // "" else "" end)')
+      NAD_PLUGINS=$(echo "$item" | jq -r '(.spec.config // "" | if . != "" then (fromjson? // {}) | [.plugins[]?.type? // empty] | join(";") else "" end)')
+      NAD_CNI="${NAD_CNI_TYPE:-unknown}"
+      if [ -n "$NAD_PLUGINS" ]; then
+        NAD_CNI="${NAD_CNI};plugins:${NAD_PLUGINS}"
+      fi
+      NAD_RESOURCE_NAME=$(echo "$item" | jq -r '.metadata.annotations["k8s.v1.cni.cncf.io/resourceName"] // ""')
+
+      write_row "network_attachment_definition" "$NAD_NAME" "configured" "$NAD_NS" \
+        "cniType:${NAD_CNI}" "resourceName:${NAD_RESOURCE_NAME}" "" ""
+    done
+  else
+    write_row "network_attachment_definition" "none" "no_definitions" "" "crd:true" "" "" ""
+  fi
+else
+  echo "[$(date +%H:%M:%S)] [$LABEL] NetworkAttachmentDefinition CRD not found (Multus not installed)"
+  write_row "network_attachment_definition" "none" "crd_not_found" "" "" "" "" ""
+fi
+
+# CNI plugin summary (OCP.34)
+write_row "cni_plugin_summary" "cluster" "type:${NET_TYPE}" "" \
+  "additionalNetworks:${ADDITIONAL_NETS}" "networkAttachmentDefs:${NAD_COUNT}" \
+  "multus:${NAD_CRD}" ""
+
 echo "[$(date +%H:%M:%S)] [$LABEL] Cluster network config done."
 
 ###############################################################################
@@ -641,6 +683,8 @@ echo "│ Network Security & Service Mesh Summary              │"
 echo "├──────────────────────────────────────────────────────┤"
 echo "│ Network type              : $NET_TYPE"
 echo "│ IPsec mode                : $IPSEC_MODE"
+echo "│ Multus (NAD CRD)          : $NAD_CRD"
+echo "│ NetworkAttachmentDefs     : $NAD_COUNT"
 echo "│ AdminNetworkPolicies      : $ANP_COUNT"
 echo "│ BaselineAdminNetworkPol   : $BANP_COUNT"
 echo "│ Egress firewalls          : $EGRESS_FIREWALL_COUNT"

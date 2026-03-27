@@ -1323,7 +1323,7 @@ oc get ds -A -o json
 
 ### export-network-security-mesh.sh
 
-Exports network security posture and service mesh enforcement: cluster network configuration, IPsec/transit encryption, egress firewalls, AdminNetworkPolicy / BaselineAdminNetworkPolicy (cluster-scoped network segmentation), exposed services (NodePort/LoadBalancer), IngressControllers, Route TLS summary, Gateway API detection, and service mesh (OSSM/Istio) with mTLS and sidecar injection detection.
+Exports network security posture and service mesh enforcement: cluster network configuration, IPsec/transit encryption, Multus NetworkAttachmentDefinitions (CNI plugin usage), egress firewalls, AdminNetworkPolicy / BaselineAdminNetworkPolicy (cluster-scoped network segmentation), exposed services (NodePort/LoadBalancer), IngressControllers, Route TLS summary, Gateway API detection, and service mesh (OSSM/Istio) with mTLS and sidecar injection detection.
 
 ```bash
 ./scripts/export-network-security-mesh.sh
@@ -1338,6 +1338,7 @@ oc get egressfirewalls.k8s.ovn.org -A -o json
 oc get egressnetworkpolicies.network.openshift.io -A -o json
 oc get adminnetworkpolicies.policy.networking.k8s.io -o json
 oc get baselineadminnetworkpolicies.policy.networking.k8s.io -o json
+oc get network-attachment-definitions.k8s.cni.cncf.io -A -o json
 oc get services -A -o json
 oc get ingresscontrollers -n openshift-ingress-operator -o json
 oc get routes -A -o json
@@ -1372,6 +1373,8 @@ oc get jaegers.jaegertracing.io -A -o json
 | `cluster_network` | Cluster CIDRs | Host prefixes | Service CIDRs | ExternalIP policy |
 | `network_operator` | Default network type | Additional networks count | — | — |
 | `network_encryption` | Geneve port | Routing via host | MTU | — |
+| `network_attachment_definition` | CNI type and plugins | Resource name annotation | — | — |
+| `cni_plugin_summary` | Additional networks count | NAD count | Multus CRD presence | — |
 | `egress_firewall` | Rule count | Allow/deny counts | DNS rule count | — |
 | `egress_network_policy` | Rule count | Allow/deny counts | Type (legacy_sdn) | — |
 | `admin_network_policy` | Subject (namespace/pod selector) | Ingress/egress rule counts | Ingress actions | Egress actions |
@@ -1427,6 +1430,8 @@ oc get jaegers.jaegertracing.io -A -o json
 - **AdminNetworkPolicy** provides cluster-scoped network segmentation that overrides namespace NetworkPolicies — verify priority ordering
 - **BaselineAdminNetworkPolicy** is the lowest-priority fallback — use for cluster-wide default-deny or default-allow baselines
 - Cross-reference with `export-shared-responsibility-model.sh` for per-namespace NetworkPolicy counts and default-deny status
+- **Multus / NetworkAttachmentDefinitions** indicate secondary network interfaces — verify each NAD is authorized and its CNI type is appropriate
+- **No NADs** with Multus present may indicate misconfiguration — additional networks configured in the operator should have corresponding NADs
 
 ---
 
@@ -1492,5 +1497,6 @@ DEBUG=true ./scripts/export-oauth-external-auth.sh
 | **Runtime Threat Detection** | `export-vulnerability-runtime-detection.sh` |
 | **Network Port Restriction** | `export-network-security-mesh.sh`, `export-shared-responsibility-model.sh` |
 | **Network Segmentation** | `export-network-security-mesh.sh`, `export-shared-responsibility-model.sh` |
+| **CNI Plugin Usage** | `export-network-security-mesh.sh` |
 | **Encryption in Transit** | `export-network-security-mesh.sh`, `export-apiserver-console-access.sh` |
 | **Service Mesh Enforcement** | `export-network-security-mesh.sh` |
