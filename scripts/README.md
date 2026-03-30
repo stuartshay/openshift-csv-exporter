@@ -243,6 +243,24 @@ Exports all ClusterRoleBindings with their subjects.
 
 One row per subject per binding.
 
+### Console Warnings — ClusterRoleBindings
+
+| Warning | Meaning |
+|---|---|
+| N binding(s) grant cluster-admin | Review each for least-privilege compliance |
+| N reference(s) to system:masters group | This group bypasses all RBAC and admission controls |
+| N non-system subject(s) bound to cluster-admin | Human or custom service accounts with full admin — verify authorization |
+
+**What auditors should look for:**
+
+- **cluster-admin bindings** should be minimized — only platform operators and break-glass accounts should hold this role
+- **system:masters group** bypasses RBAC entirely — any binding referencing this group is effectively uncontrolled; verify each is an OpenShift-managed system component
+- **Non-system subjects** bound to cluster-admin (names not starting with `system:`) represent human users or custom service accounts — each must be documented and authorized
+- **ServiceAccount subjects** bound to powerful roles across namespaces may indicate over-provisioned automation — verify each SA needs cluster-wide access
+- **Group bindings** to `cluster-admin` or `cluster-reader` should map to organizational teams — verify group membership is managed via external IDP
+- Cross-reference with `export-cluster-admin-bindings.sh` for a filtered view of cluster-admin holders only
+- Cross-reference with `export-clusterroles.sh` to understand what permissions each referenced role actually grants
+
 ---
 
 ### export-clusterrolebinding-self-provisioners.sh
@@ -265,6 +283,21 @@ Exports the `self-provisioners` ClusterRoleBinding specifically. Indicates wheth
 | `subject_kind` | Subject type |
 | `subject_name` | Subject name |
 | `subject_namespace` | Subject namespace |
+
+### Console Warnings — Self-Provisioners
+
+| Warning | Meaning |
+|---|---|
+| system:authenticated:oauth is bound | ALL authenticated users can create projects without admin approval |
+
+**What auditors should look for:**
+
+- **system:authenticated:oauth bound = true** is the OpenShift default — it means every authenticated user can create new projects; most production clusters should remove this to enforce namespace governance
+- **Binding does not exist** means self-provisioning is disabled — project creation requires admin approval, which is the recommended posture for regulated environments
+- **Custom subjects** bound to self-provisioners (instead of `system:authenticated:oauth`) may indicate a scoped self-provisioning policy — verify the group or user list is intentional
+- Removing self-provisioners requires a corresponding process for project requests (e.g., ServiceNow, GitOps namespace provisioning) — verify an alternative workflow exists
+- Cross-reference with `export-clusterrolebindings.sh` for the full binding inventory
+- Cross-reference with `export-platform-guardrails.sh` for project request template and limit range configuration
 
 ---
 
@@ -313,6 +346,26 @@ Exports all ClusterRoles with their permission rules. Answers: **what permission
 | `non_resource_urls` | Non-resource URLs (`;`-delimited) |
 
 One row per rule per role.
+
+### Console Warnings — ClusterRoles
+
+| Warning | Meaning |
+|---|---|
+| N role(s) grant wildcard verbs AND resources | Equivalent to full API access — effectively cluster-admin |
+| N role(s) use wildcard verbs (*) | Grants all actions (get, list, create, delete, etc.) on matched resources |
+| N role(s) use wildcard resources (*) | Grants access to all resource types in the matched API groups |
+
+**What auditors should look for:**
+
+- **Wildcard verbs AND resources** in a single rule is equivalent to cluster-admin level access — verify each role is an OpenShift-managed system role or has documented justification
+- **Wildcard verbs (*)** grant all actions including `delete`, `patch`, and `escalate` — roles should use explicit verb lists following least-privilege
+- **Wildcard resources (*)** grant access to every resource type including secrets, configmaps, and custom resources — roles should target specific resources
+- **Non-system roles** (names not starting with `system:`) with broad permissions may indicate custom roles that have drifted from least-privilege — review creation timestamps and ownership
+- **`escalate` and `bind` verbs** on `clusterroles` or `roles` resources allow privilege escalation — flag any non-system role granting these
+- **`impersonate` verb** on users, groups, or serviceaccounts allows identity impersonation — this is a high-risk permission that should be tightly scoped
+- Cross-reference with `export-clusterrolebindings.sh` to see which subjects are actually bound to flagged roles
+- Cross-reference with `export-cluster-admin-bindings.sh` for the specific cluster-admin binding inventory
+- Cross-reference with `export-scc-privileged.sh` for workload-level privilege escalation via SecurityContextConstraints
 
 ---
 
