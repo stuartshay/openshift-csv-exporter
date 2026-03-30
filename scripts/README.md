@@ -322,6 +322,24 @@ Exports only ClusterRoleBindings that grant `cluster-admin` access. Answers: **w
 | `subject_namespace` | Subject namespace |
 | `creation_timestamp` | When the binding was created |
 
+### Console Warnings — Cluster-Admin Bindings
+
+| Warning | Meaning |
+|---|---|
+| N non-system subject(s) have cluster-admin | Human or custom accounts with full admin — must be documented and authorized |
+| N individual user(s) bound to cluster-admin | Direct user bindings — prefer group-based bindings managed via IDP |
+| N ServiceAccount(s) bound to cluster-admin | Service accounts with full cluster access — verify each requires it |
+
+**What auditors should look for:**
+
+- **Non-system subjects** (names not starting with `system:`) represent human users or custom service accounts — each must have documented authorization and a business justification
+- **Individual user bindings** should be replaced with group-based bindings managed via the external IDP — direct user bindings bypass centralized access governance
+- **ServiceAccount cluster-admin bindings** indicate automation with unrestricted access — verify each SA's namespace and purpose; prefer scoped roles where possible
+- **Binding count** should be minimal — most clusters need only a handful of cluster-admin bindings for platform operators and break-glass accounts
+- **creation_timestamp** can reveal bindings created outside change management windows or before IDP integration was established
+- Cross-reference with `export-clusterrolebindings.sh` for the full binding inventory
+- Cross-reference with `export-oauth-external-auth.sh` to verify that external authentication is enforced before trusting user identity bindings
+
 ---
 
 ### export-clusterroles.sh
@@ -397,6 +415,29 @@ Exports API server and console access restriction configuration. Answers: **are 
 | `additional_cors_origins` | Allowed CORS origins (`;`-delimited) |
 | `serving_certs_count` | Number of named serving certificates |
 | `cluster_admin_binding_count` | Total subjects with cluster-admin role |
+
+### Console Warnings — API Server & Console Access
+
+| Warning | Meaning |
+|---|---|
+| TLS security profile is not set | API server uses the default profile — consider Intermediate or Custom |
+| Audit profile is Default/not set | Audit logging may not capture request bodies needed for security investigations |
+| etcd encryption type is not set | Secrets are stored unencrypted at rest in etcd |
+| No custom client CA configured | Mutual TLS for API clients is not enforced |
+| No named serving certificates | API server uses the default self-signed certificate |
+| N subject(s) have cluster-admin access | Review with `export-cluster-admin-bindings.sh` |
+
+**What auditors should look for:**
+
+- **TLS security profile** should be `Intermediate` or `Custom` with `VersionTLS12` minimum — the default profile may allow older TLS versions; `Modern` (`VersionTLS13`) is strongest but may break older clients
+- **Audit profile** of `Default` only logs metadata — `WriteRequestBodies` or `AllRequestBodies` is required for forensic investigation of API changes; verify the profile meets organizational logging requirements
+- **etcd encryption** should be `aescbc` or `aesgcm` — without encryption, secrets (tokens, passwords, certificates) are stored in plaintext in etcd backups
+- **Client CA** enables mutual TLS authentication for API clients — absence means any client with a valid token can connect without certificate verification
+- **Named serving certificates** should be configured with organization-issued certificates — self-signed certificates trigger browser warnings and may not meet compliance requirements
+- **CORS origins** should be empty or tightly scoped — additional origins expand the attack surface for cross-origin API requests
+- **cluster-admin binding count** indicates how many subjects have unrestricted API access — cross-reference with `export-cluster-admin-bindings.sh` for the full list
+- Cross-reference with `export-oauth-external-auth.sh` to verify authentication is enforced before granting API access
+- Cross-reference with `export-credential-management.sh` for service account token and certificate rotation configuration
 
 ---
 
