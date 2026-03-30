@@ -19,35 +19,35 @@ NC='\033[0m' # No Color
 : "${OUTPUT_DIR:?OUTPUT_DIR is not set}"
 : "${TIMESTAMP:?TIMESTAMP is not set}"
 
-echo "[$LABEL] Starting export at $(date)"
+echo "[$(date +%H:%M:%S)] [$LABEL] Starting export at $(date)"
 
 OUTPUT_FILE="$OUTPUT_DIR/oauth-external-auth-${CLUSTER_NAME_SAFE}-$TIMESTAMP.csv"
 
 echo "cluster_name,cluster_context,cluster_server,external_auth_enforced,kubeadmin_removed,identity_providers_count,idp_name,idp_type,idp_mapping_method,idp_issuer,idp_client_id,access_token_max_age_seconds" > "$OUTPUT_FILE"
 
-echo "[$LABEL] Checking permission for oauth cluster..."
+echo "[$(date +%H:%M:%S)] [$LABEL] Checking permission for oauth cluster..."
 if ! oc auth can-i get oauths.config.openshift.io >/dev/null 2>&1; then
-  echo -e "${RED}[$LABEL] ERROR: Permission denied — cannot read oauths.config.openshift.io${NC}"
-  echo -e "${RED}[$LABEL] Grant access: oc adm policy add-cluster-role-to-user cluster-reader <user>${NC}"
-  echo -e "${RED}[$LABEL] Skipping export — CSV will contain header only.${NC}"
+  echo -e "${RED}[$(date +%H:%M:%S)] [$LABEL] ERROR: Permission denied — cannot read oauths.config.openshift.io${NC}"
+  echo -e "${RED}[$(date +%H:%M:%S)] [$LABEL] Grant access: oc adm policy add-cluster-role-to-user cluster-reader <user>${NC}"
+  echo -e "${RED}[$(date +%H:%M:%S)] [$LABEL] Skipping export — CSV will contain header only.${NC}"
   ELAPSED=$(( SECONDS - SCRIPT_START_SECONDS ))
-  echo "[$LABEL] Completed at $(date) — total time: ${ELAPSED}s"
+  echo "[$(date +%H:%M:%S)] [$LABEL] Completed at $(date) — total time: ${ELAPSED}s"
   echo "Created: $OUTPUT_FILE"
   exit 0
 fi
 
 # Check if kubeadmin secret has been removed (indicates external auth is enforced)
-echo "[$LABEL] Checking kubeadmin secret..."
+echo "[$(date +%H:%M:%S)] [$LABEL] Checking kubeadmin secret..."
 KUBEADMIN_REMOVED="false"
 if ! oc get secret kubeadmin -n kube-system >/dev/null 2>&1; then
   KUBEADMIN_REMOVED="true"
 fi
-echo "[$LABEL]   kubeadmin removed: $KUBEADMIN_REMOVED"
+echo "[$(date +%H:%M:%S)] [$LABEL]   kubeadmin removed: $KUBEADMIN_REMOVED"
 
-echo "[$LABEL] Fetching oauth cluster..."
+echo "[$(date +%H:%M:%S)] [$LABEL] Fetching oauth cluster..."
 OAUTH_JSON=$(oc get oauth cluster -o json | tr -d '\r')
 
-echo "[$LABEL] Processing oauth cluster..."
+echo "[$(date +%H:%M:%S)] [$LABEL] Processing identity providers..."
 echo "$OAUTH_JSON" | jq -r \
   --arg cluster_name "$CLUSTER_NAME" \
   --arg cluster_context "$CLUSTER_CONTEXT" \
@@ -96,12 +96,34 @@ if [ "$IDP_COUNT" -gt 0 ] && [ "$KUBEADMIN_REMOVED" = "true" ]; then
   ENFORCED="true"
 fi
 
-echo "[$LABEL] External auth summary:"
-echo "[$LABEL]   External auth enforced: $ENFORCED"
-echo "[$LABEL]   kubeadmin removed: $KUBEADMIN_REMOVED"
-echo "[$LABEL]   Identity providers: $IDP_COUNT"
-echo "[$LABEL] Export done."
+echo ""
+echo "┌──────────────────────────────────────────────────────┐"
+echo "│ External Authentication Summary                     │"
+echo "├──────────────────────────────────────────────────────┤"
+echo "│ External auth enforced    : $ENFORCED"
+echo "│ kubeadmin removed         : $KUBEADMIN_REMOVED"
+echo "│ Identity providers        : $IDP_COUNT"
+echo "└──────────────────────────────────────────────────────┘"
+echo ""
+
+# ── Critical warnings ────────────────────────────────────────────────────────
+if [ "$KUBEADMIN_REMOVED" = "false" ]; then
+  echo -e "${RED}[$(date +%H:%M:%S)] [$LABEL] WARNING: kubeadmin secret still exists — default cluster admin credentials have not been removed${NC}"
+fi
+
+if [ "$IDP_COUNT" -eq 0 ]; then
+  echo -e "${RED}[$(date +%H:%M:%S)] [$LABEL] WARNING: No identity providers configured — cluster relies on kubeadmin only${NC}"
+fi
+
+if [ "$ENFORCED" = "false" ]; then
+  echo -e "${RED}[$(date +%H:%M:%S)] [$LABEL] WARNING: External authentication is NOT enforced — either no IDP or kubeadmin not removed (OCP.1)${NC}"
+fi
+
+TOKEN_MAX_AGE=$(echo "$OAUTH_JSON" | jq -r '.spec.tokenConfig.accessTokenMaxAgeSeconds // ""')
+if [ -z "$TOKEN_MAX_AGE" ]; then
+  echo -e "${RED}[$(date +%H:%M:%S)] [$LABEL] WARNING: accessTokenMaxAgeSeconds not set — tokens use the default 24h lifetime${NC}"
+fi
 
 ELAPSED=$(( SECONDS - SCRIPT_START_SECONDS ))
-echo "[$LABEL] Completed at $(date) — total time: ${ELAPSED}s"
+echo "[$(date +%H:%M:%S)] [$LABEL] Completed at $(date) — total time: ${ELAPSED}s"
 echo "Created: $OUTPUT_FILE"

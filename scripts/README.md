@@ -197,6 +197,27 @@ Reports whether external authentication is enforced. Checks both identity provid
 
 One row per identity provider is produced.
 
+### Console Warnings — OAuth External Auth
+
+| Warning | Meaning |
+|---|---|
+| kubeadmin secret still exists | Default cluster admin credentials have not been removed |
+| No identity providers configured | Cluster relies on kubeadmin only — no external authentication |
+| External authentication is NOT enforced | Either no IDP configured or kubeadmin not removed (OCP.1) |
+| accessTokenMaxAgeSeconds not set | Tokens use the default 24h lifetime — may not meet session policy |
+
+**What auditors should look for:**
+
+- **External auth enforced = false** is a critical finding — the cluster must have at least one external IDP configured AND the kubeadmin secret removed to meet OCP.1
+- **kubeadmin not removed** means the default break-glass credential is still active — this should only remain during initial setup; remove after external auth is confirmed working
+- **IDP type** should be `OpenID` (OIDC/Okta/Azure AD/Keycloak) or `LDAP` for enterprise environments — `HTPasswd` is acceptable only for break-glass or non-production clusters
+- **mappingMethod** of `add` auto-creates identities on first login — `claim` is stricter and preferred for production
+- **accessTokenMaxAgeSeconds** should be set to align with organizational session timeout policy (e.g., 28800 for 8 hours) — unset defaults to 86400 (24h)
+- **Multiple IDPs** may be intentional (e.g., OIDC for users + HTPasswd for break-glass) — verify each is authorized and documented
+- **OIDC issuer URL** should point to the organization's identity provider — verify it is not a third-party or personal tenant
+- Cross-reference with `export-credential-management.sh` for service account token lifetimes and bound token configuration
+- Cross-reference with `export-oauth-cluster.sh` for the full OAuth object including templates and token settings
+
 ---
 
 ### export-clusterrolebindings.sh
