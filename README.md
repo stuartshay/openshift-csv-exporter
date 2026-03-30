@@ -45,6 +45,7 @@ Example:
 - `configuration drift status` — configuration drift signals: ArgoCD sync drift, Flux reconciliation status, Compliance Operator scan results, node version consistency, and operator version consistency
 - `vulnerability runtime detection` — vulnerability scanning and runtime threat detection: ACS/StackRox scanner and collector config, Compliance Operator scan settings, image provenance controls, and third-party tool detection (Falco, NeuVector, Sysdig, CrowdStrike, Prisma, Aqua)
 - `network security mesh` — network security posture and service mesh enforcement: cluster network config, IPsec/transit encryption, Multus/NetworkAttachmentDefinitions (CNI plugin usage), AdminNetworkPolicy/BaselineAdminNetworkPolicy (cluster-scoped segmentation), default-deny posture for inter-project traffic, egress firewalls, exposed services (NodePort/LoadBalancer), IngressControllers, Route TLS summary, Gateway API, and OSSM/Istio service mesh with mTLS and sidecar injection detection
+- `ingress boundary protection` — external boundary protection and internal service exposure: WAF/API Gateway detection via IngressController and Route annotations, 3scale APIManager/APIcast instances, Gateway API resources, ExternalName services (DNS rebinding risk), services with externalIPs, and endpoints with external (non-pod) targets
 
 See [`scripts/README.md`](scripts/README.md) for full column details and usage.
 
@@ -87,6 +88,8 @@ See [`scripts/README.md`](scripts/README.md) for full column details and usage.
 | **CNI Plugin Usage** | `export-network-security-mesh.sh` |
 | **Encryption in Transit** | `export-network-security-mesh.sh`, `export-apiserver-console-access.sh` |
 | **Default Deny for Inter-Project Traffic** | `export-network-security-mesh.sh`, `export-shared-responsibility-model.sh` |
+| **External Egress/Ingress Boundary Protection** | `export-ingress-boundary-protection.sh`, `export-network-security-mesh.sh` |
+| **Internal Service Exposure Control** | `export-ingress-boundary-protection.sh`, `export-network-security-mesh.sh`, `export-shared-responsibility-model.sh` |
 | **Service Mesh Enforcement** | `export-network-security-mesh.sh` |
 
 ## Requirements

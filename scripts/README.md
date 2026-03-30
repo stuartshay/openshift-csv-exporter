@@ -1438,6 +1438,71 @@ oc get jaegers.jaegertracing.io -A -o json
 
 ---
 
+### export-ingress-boundary-protection.sh
+
+Exports external ingress/egress boundary protection and internal service exposure: WAF/API Gateway detection via IngressController and Route annotations, 3scale APIManager/APIcast instances, Gateway API resources, and internal service exposure audit including ExternalName services, services with externalIPs, and endpoints with external (non-pod) targets.
+
+```bash
+./scripts/export-ingress-boundary-protection.sh
+```
+
+**OC commands used:**
+
+```bash
+oc get ingresscontrollers -n openshift-ingress-operator -o json
+oc get routes -A -o json
+oc get crd apimanagers.apps.3scale.net
+oc get apimanagers -A -o json
+oc get crd apicasts.apps.3scale.net
+oc get apicasts -A -o json
+oc get crd gateways.gateway.networking.k8s.io
+oc get gateways -A -o json
+oc get services -A -o json
+oc get endpoints -A -o json
+```
+
+**Output file:** `ingress-boundary-protection-<cluster>-<timestamp>.csv`
+
+| Record Type | detail_1 | detail_2 | detail_3 | detail_4 |
+|---|---|---|---|---|
+| `ingress_waf_check` | WAF annotations found | Rate-limit annotations | Custom annotations | — |
+| `route_waf_annotation` | WAF annotation keys | Rate-limit annotation keys | — | — |
+| `route_ip_whitelist_summary` | Total routes | — | — | — |
+| `threescale_api_manager` | Wildcard domain | APIcast staging/production replicas | Status conditions | — |
+| `apicast_instance` | Replicas | Admin portal reference | — | — |
+| `gateway_api_instance` | Gateway class | Listener count | — | — |
+| `api_gateway_summary` | 3scale CRD presence | APIcast CRD presence | Gateway API CRD presence | Instance counts |
+| `service_external_name` | Target external hostname | — | — | — |
+| `service_external_ip` | Service type | External IPs | Ports | — |
+| `endpoint_external_target` | External IP addresses | Address count | — | — |
+| `service_type_summary` | ClusterIP/NodePort counts | LoadBalancer/ExternalName counts | ExternalIP service count | External endpoint count |
+| `boundary_protection_summary` | Route WAF annotation count | IP whitelist route count | 3scale/APIcast CRD presence | Gateway API/APIManager counts |
+
+### Console Warnings — Ingress Boundary Protection
+
+| Warning | Meaning |
+|---|---|
+| No WAF annotations, API gateway, or 3scale detected | External traffic has no application-layer protection (OCP.35) |
+| ExternalName service(s) found | DNS rebinding risk — verify each is authorized (OCP.37) |
+| Services have externalIPs set | Bypasses normal ingress controls — verify each is authorized (OCP.37) |
+| Endpoints have external (non-pod) targets | Traffic may leave the cluster without ingress controls (OCP.37) |
+
+**What auditors should look for:**
+
+- **No WAF/API gateway** means external HTTP traffic reaches applications without application-layer filtering (SQLi, XSS, etc.) — verify whether boundary protection is provided by external WAF appliances or CDN
+- **IngressController WAF annotations** (e.g., ModSecurity, F5, Cloudflare, AWS WAF) indicate application-layer protection is configured at the ingress level
+- **Route WAF annotations** indicate per-route WAF or rate-limiting configuration — check whether critical routes have protection
+- **IP whitelist annotations** on routes restrict source IPs — verify these match expected client ranges
+- **3scale APIManager** provides API management (rate limiting, key management, analytics) — verify production instances are deployed and healthy
+- **ExternalName services** create DNS aliases to external endpoints — risk of DNS rebinding attacks; each should be authorized and documented
+- **Services with externalIPs** bypass the normal ingress path (Routes/IngressControllers) — this is a high-risk pattern that should be explicitly approved
+- **Endpoints with external targets** (no pod targetRef) indicate manually-managed backends pointing outside the cluster — verify these are intentional
+- Cross-reference with `export-network-security-mesh.sh` for NodePort/LoadBalancer exposed services and IngressController TLS configuration
+- Cross-reference with `export-platform-guardrails.sh` for ExternalIP policy configuration
+- Cross-reference with `export-shared-responsibility-model.sh` for per-namespace NetworkPolicy coverage of internal services
+
+---
+
 ## Usage Examples
 
 Run all reports at once:
@@ -1503,4 +1568,6 @@ DEBUG=true ./scripts/export-oauth-external-auth.sh
 | **CNI Plugin Usage** | `export-network-security-mesh.sh` |
 | **Encryption in Transit** | `export-network-security-mesh.sh`, `export-apiserver-console-access.sh` |
 | **Default Deny for Inter-Project Traffic** | `export-network-security-mesh.sh`, `export-shared-responsibility-model.sh` |
+| **External Egress/Ingress Boundary Protection** | `export-ingress-boundary-protection.sh`, `export-network-security-mesh.sh` |
+| **Internal Service Exposure Control** | `export-ingress-boundary-protection.sh`, `export-network-security-mesh.sh`, `export-shared-responsibility-model.sh` |
 | **Service Mesh Enforcement** | `export-network-security-mesh.sh` |
