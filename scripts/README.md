@@ -443,28 +443,117 @@ Exports API server and console access restriction configuration. Answers: **are 
 
 ### export-scc-privileged.sh
 
-Exports the `privileged` SecurityContextConstraints configuration.
+Exports all SecurityContextConstraints (SCCs) for container least-privilege and SCC enforcement auditing. Answers: **what security constraints are defined, and which allow privileged access?**
 
 ```bash
 ./scripts/export-scc-privileged.sh
 ```
 
-**OC command:** `oc get scc privileged -o json`
+**OC command:** `oc get scc -o json`
 
 **Output file:** `scc-privileged-<cluster>-<timestamp>.csv`
 
 | Column | Description |
 |---|---|
 | `name` | SCC name |
+| `priority` | SCC priority (higher wins on conflict) |
 | `allow_privileged_container` | Privileged containers allowed |
+| `default_add_capabilities` | Capabilities added by default (`;`-delimited) |
+| `required_drop_capabilities` | Capabilities that must be dropped (`;`-delimited) |
+| `allowed_capabilities` | Capabilities that may be requested (`;`-delimited) |
 | `allow_host_network` | Host network access allowed |
+| `allow_host_ports` | Host port binding allowed |
 | `allow_host_pid` | Host PID namespace allowed |
 | `allow_host_ipc` | Host IPC allowed |
 | `read_only_root_filesystem` | Read-only root filesystem enforced |
-| `run_as_user_type` | RunAsUser strategy |
+| `run_as_user_type` | RunAsUser strategy (MustRunAsRange, RunAsAny, etc.) |
 | `se_linux_context_type` | SELinux context strategy |
+| `fs_group_type` | FSGroup strategy |
+| `supplemental_groups_type` | SupplementalGroups strategy |
+| `volumes` | Allowed volume types (`;`-delimited) |
+| `allow_privilege_escalation` | Privilege escalation allowed |
 | `users_count` | Number of users granted this SCC |
 | `groups_count` | Number of groups granted this SCC |
+| `users` | Users granted this SCC (`;`-delimited) |
+| `groups` | Groups granted this SCC (`;`-delimited) |
+
+One row per SCC.
+
+### Console Warnings — SCC Enforcement
+
+| Warning | Meaning |
+|---|---|
+| N SCC(s) allow privileged containers | Named SCCs permit full host-level access |
+| N SCC(s) allow RunAsAny | Containers can run as root — no UID enforcement |
+| N SCC(s) do not require DROP ALL capabilities | Containers retain default Linux capabilities |
+| N SCC(s) allow privilege escalation | Containers can gain more privileges than their parent process |
+| N SCC(s) allow host network access | Named SCCs permit host network namespace |
+
+**What auditors should look for:**
+
+- **`restricted` or `restricted-v2` SCC** should be the default for all workloads — it enforces non-root, drops ALL capabilities, read-only root FS, and blocks host access
+- **`privileged` SCC** grants full host access — only system components (node monitoring, CNI, storage) should use it; verify each user/group assignment is justified
+- **RunAsAny** strategy allows containers to run as UID 0 (root) — production SCCs should use `MustRunAsRange` or `MustRunAsNonRoot`
+- **requiredDropCapabilities** should include `ALL` on least-privilege SCCs — this ensures containers start with zero capabilities and must explicitly request any they need
+- **allowPrivilegeEscalation = true** (the default if unset) allows `setuid` binaries — set to `false` on all non-privileged SCCs
+- **allowedCapabilities** should be empty or minimal — each allowed capability (`NET_RAW`, `NET_BIND_SERVICE`, etc.) expands the attack surface
+- **Custom SCCs** (not from the default OCP set) should be reviewed for drift — compare against the `restricted-v2` baseline
+- **Direct user grants** in the `users` field should be replaced with RoleBindings to SCC-granting ClusterRoles — direct grants are harder to audit
+- Cross-reference with `export-clusterrolebindings.sh` for RBAC-based SCC grants via `use` verb on `securitycontextconstraints` resources
+- Cross-reference with `export-policy-as-code.sh` for Gatekeeper constraints that enforce SCC-like policies
+
+---
+
+### export-workload-resource-quotas.sh
+
+Exports ResourceQuotas and LimitRanges across all namespaces for workload resource enforcement auditing. Answers: **are resource limits enforced to prevent workload starvation and noisy-neighbor issues?**
+
+```bash
+./scripts/export-workload-resource-quotas.sh
+```
+
+**OC commands:**
+
+- `oc get resourcequotas --all-namespaces -o json`
+- `oc get limitranges --all-namespaces -o json`
+- `oc get namespaces -o json`
+
+**Output file:** `workload-resource-quotas-<cluster>-<timestamp>.csv`
+
+| Column | Description |
+|---|---|
+| `record_type` | `resource_quota` or `limit_range` |
+| `namespace` | Namespace name |
+| `name` | ResourceQuota or LimitRange name |
+| `resource_key` | Resource key (cpu, memory, pods, etc.) |
+| `hard_limit` | Hard limit value (ResourceQuota) |
+| `used` | Current usage (ResourceQuota) |
+| `limit_type` | Limit type — Container, Pod, PersistentVolumeClaim (LimitRange) |
+| `default_value` | Default limit (LimitRange) |
+| `default_request` | Default request (LimitRange) |
+| `max_value` | Maximum allowed (LimitRange) |
+| `min_value` | Minimum allowed (LimitRange) |
+
+### Console Warnings — Workload Resource Quotas
+
+| Warning | Meaning |
+|---|---|
+| N user namespace(s) have no ResourceQuota | Workloads can consume unlimited cluster resources |
+| N user namespace(s) have no LimitRange | Pods may run without resource requests or limits |
+| No ResourceQuotas found in the entire cluster | Resource consumption is completely uncontrolled |
+| No LimitRanges found in the entire cluster | Containers have no default resource limits |
+
+**What auditors should look for:**
+
+- **User namespaces without ResourceQuota** allow unrestricted resource consumption — every user-facing namespace should have quotas for `cpu`, `memory`, and `pods` at minimum
+- **User namespaces without LimitRange** mean pods can be scheduled without resource requests — this leads to noisy-neighbor issues and makes capacity planning impossible
+- **LimitRange defaults** should be set for both `cpu` and `memory` to ensure all containers get requests/limits even if developers omit them
+- **ResourceQuota `used` vs `hard`** ratios near 100% indicate namespaces at capacity — this may cause legitimate pod scheduling failures
+- **Missing `pods` quota** allows unlimited pod creation in a namespace — a single namespace could starve the scheduler
+- **Missing `persistentvolumeclaims` quota** allows unlimited storage claims — verify storage quotas are set for namespaces that consume PVCs
+- **System namespaces** (openshift-*, kube-*) typically do not need user-managed quotas as they are managed by operators
+- Cross-reference with `export-shared-responsibility-model.sh` for namespace-level tenant boundary controls including QuotaS and LimitRanges
+- Cross-reference with `export-platform-guardrails.sh` for project request template configuration that can auto-inject quotas on namespace creation
 
 ---
 
@@ -1651,7 +1740,10 @@ DEBUG=true ./scripts/export-oauth-external-auth.sh
 | **External Authentication Enforced** | `export-oauth-external-auth.sh`, `export-oauth-cluster.sh` |
 | **Granular Role-Based Access Controls** | `export-clusterroles.sh`, `export-clusterrolebindings.sh`, `export-clusterrolebinding-self-provisioners.sh` |
 | **API & Console Access Restriction** | `export-apiserver-console-access.sh`, `export-cluster-admin-bindings.sh` |
+| **Container Least Privilege** | `export-scc-privileged.sh`, `export-policy-as-code.sh` |
+| **SCC Enforcement** | `export-scc-privileged.sh`, `export-clusterrolebindings.sh` |
 | **Privileged Container Controls** | `export-scc-privileged.sh` |
+| **Workload Resource Quotas** | `export-workload-resource-quotas.sh`, `export-shared-responsibility-model.sh` |
 | **Worker Node AuthN/AuthZ** | `export-worker-node-auth.sh` |
 | **Cluster Admin/SRE Credential Management** | `export-credential-management.sh`, `export-oauth-external-auth.sh` |
 | **Cluster Version & Health** | `export-clusterversion.sh`, `export-clusteroperators.sh` |

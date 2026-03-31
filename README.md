@@ -26,7 +26,8 @@ Example:
 - `oauth external auth` — external authentication enforcement
 - `infrastructure cluster` — platform and topology
 - `apiserver console access` — API server and console security config
-- `scc privileged` — privileged SecurityContextConstraints
+- `scc privileged` — all SecurityContextConstraints for container least-privilege and SCC enforcement auditing
+- `workload resource quotas` — ResourceQuotas and LimitRanges across all namespaces for workload resource enforcement
 - `worker node auth` — worker node authentication and authorization enforcement
 - `credential management` — cluster admin and infrastructure credential audit
 - `platform guardrails` — platform distribution validation and misconfigured component detection
@@ -56,7 +57,10 @@ See [`scripts/README.md`](scripts/README.md) for full column details and usage.
 | **External Authentication Enforced** | `export-oauth-external-auth.sh`, `export-oauth-cluster.sh` |
 | **Granular Role-Based Access Controls** | `export-clusterroles.sh`, `export-clusterrolebindings.sh`, `export-clusterrolebinding-self-provisioners.sh` |
 | **API & Console Access Restriction** | `export-apiserver-console-access.sh`, `export-cluster-admin-bindings.sh` |
+| **Container Least Privilege** | `export-scc-privileged.sh`, `export-policy-as-code.sh` |
+| **SCC Enforcement** | `export-scc-privileged.sh`, `export-clusterrolebindings.sh` |
 | **Privileged Container Controls** | `export-scc-privileged.sh` |
+| **Workload Resource Quotas** | `export-workload-resource-quotas.sh`, `export-shared-responsibility-model.sh` |
 | **Worker Node AuthN/AuthZ** | `export-worker-node-auth.sh` |
 | **Cluster Admin/SRE Credential Management** | `export-credential-management.sh`, `export-oauth-external-auth.sh` |
 | **Cluster Version & Health** | `export-clusterversion.sh`, `export-clusteroperators.sh` |
