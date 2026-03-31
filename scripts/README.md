@@ -1211,6 +1211,7 @@ oc get rolebindings -n <namespace> -o json
 |---|---|---|---|---|
 | Project Template | `has_quota:<N>` | `has_limitrange:<N>` | `has_networkpolicy:<N>` | `object_kinds:<list>` |
 | Namespace | `owner:<name>` | `team:<name>` | `environment:<env>;status:<phase>;created:<ts>` | `node_selector:<selector>` |
+| PSA Label | `enforce:<restricted\|baseline\|privileged\|none>` | `audit:<level>;warn:<level>` | `enforce_version:<version\|latest>` | |
 | ResourceQuota | `hard_cpu:<val>;hard_memory:<val>` | `hard_pods:<val>;hard_storage:<val>` | `used_cpu:<val>;used_memory:<val>;used_pods:<val>` | |
 | LimitRange | `default_cpu:<val>;default_memory:<val>` | `default_request_cpu:<val>;default_request_memory:<val>` | `max_cpu:<val>;max_memory:<val>` | `types:<list>` |
 | NetworkPolicy | `policy_types:<Ingress;Egress>` | `pod_selector:<labels>` | `ingress_rules:<N>;egress_rules:<N>` | `default_deny:<bool>` |
@@ -1221,6 +1222,8 @@ oc get rolebindings -n <namespace> -o json
 | Warning | Meaning |
 |---|---|
 | CRITICAL: No project template + no quotas/limits/netpols | Tenant boundaries are completely unenforced |
+| WARNING: N tenant namespace(s) have PSA enforce=privileged | Pods can run with full host access — no PSA admission restriction |
+| WARNING: N tenant namespace(s) have no PSA enforce label | Pods rely on SCC enforcement only, no PSA admission check |
 | WARNING: No project request template configured | New projects get default settings only |
 | WARNING: Project template has no ResourceQuota | New projects get no resource limits |
 | WARNING: Project template has no NetworkPolicy | New projects get no network isolation |
@@ -1232,6 +1235,9 @@ oc get rolebindings -n <namespace> -o json
 **What auditors should look for:**
 
 - **No project request template** is a significant finding — new projects get no default boundaries
+- **PSA enforce=privileged** on tenant namespaces disables Pod Security Standards admission checks — pods can run as root, with host access, and without capability restrictions. On OCP 4.18+, `restricted` is the recommended enforce level for all user workloads
+- **No PSA enforce label** means the namespace has no Pod Security Standards gate — security context enforcement relies solely on SCCs. Adding `pod-security.kubernetes.io/enforce: restricted` provides defense-in-depth alongside SCCs
+- **PSA audit/warn labels** without a matching enforce label provide visibility but no enforcement — auditors should verify that `enforce` is also set
 - **Namespaces without ResourceQuotas** can consume unlimited CPU/memory/storage
 - **Namespaces without LimitRanges** allow pods to run without resource requests/limits
 - **Namespaces without NetworkPolicies** have unrestricted network access across the cluster
@@ -1744,6 +1750,8 @@ DEBUG=true ./scripts/export-oauth-external-auth.sh
 | **SCC Enforcement** | `export-scc-privileged.sh`, `export-clusterrolebindings.sh` |
 | **Privileged Container Controls** | `export-scc-privileged.sh` |
 | **Workload Resource Quotas** | `export-workload-resource-quotas.sh`, `export-shared-responsibility-model.sh` |
+| **Trusted Image Enforcement** | `export-governance-policy-ecosystem.sh` (image policy section), `export-vulnerability-runtime-detection.sh` |
+| **Pod Security Context** | `export-scc-privileged.sh`, `export-shared-responsibility-model.sh` (PSA labels) |
 | **Worker Node AuthN/AuthZ** | `export-worker-node-auth.sh` |
 | **Cluster Admin/SRE Credential Management** | `export-credential-management.sh`, `export-oauth-external-auth.sh` |
 | **Cluster Version & Health** | `export-clusterversion.sh`, `export-clusteroperators.sh` |

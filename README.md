@@ -41,7 +41,7 @@ Example:
 - `etcd encryption status` — global encryption config, kubeapiserver and openshiftapiserver operator health, and per-resource encryption migration conditions
 - `governance policy ecosystem` — discovers governance tooling (Gatekeeper, Kyverno, Compliance Operator, ACS/StackRox, ACM, Quay, image policy) with per-product detection and policy counts
 - `secrets integration` — discovers enterprise secrets providers (External Secrets Operator, Secrets Store CSI Driver, HashiCorp Vault, CyberArk Conjur) and summarizes native Kubernetes secrets by type
-- `shared responsibility model` — namespace-level tenant boundary controls: project request template, namespace ownership labels, ResourceQuotas, LimitRanges, NetworkPolicies, and namespace RoleBindings
+- `shared responsibility model` — namespace-level tenant boundary controls: project request template, namespace ownership labels, Pod Security Admission (PSA) enforce/audit/warn labels, ResourceQuotas, LimitRanges, NetworkPolicies, and namespace RoleBindings
 - `monitoring audit logging` — observability, audit logging, and centralized log retention: monitoring operator health, cluster monitoring config, user workload monitoring, Datadog integration, cluster logging, log forwarding with output TLS verification, audit log forwarding validation, LokiStack log retention, alerting rules, and Alertmanager receivers
 - `configuration drift status` — configuration drift signals: ArgoCD sync drift, Flux reconciliation status, Compliance Operator scan results, node version consistency, and operator version consistency
 - `vulnerability runtime detection` — vulnerability scanning and runtime threat detection: ACS/StackRox scanner and collector config, Compliance Operator scan settings, image provenance controls, and third-party tool detection (Falco, NeuVector, Sysdig, CrowdStrike, Prisma, Aqua)
@@ -61,6 +61,8 @@ See [`scripts/README.md`](scripts/README.md) for full column details and usage.
 | **SCC Enforcement** | `export-scc-privileged.sh`, `export-clusterrolebindings.sh` |
 | **Privileged Container Controls** | `export-scc-privileged.sh` |
 | **Workload Resource Quotas** | `export-workload-resource-quotas.sh`, `export-shared-responsibility-model.sh` |
+| **Trusted Image Enforcement** | `export-governance-policy-ecosystem.sh` (image policy section), `export-vulnerability-runtime-detection.sh` |
+| **Pod Security Context** | `export-scc-privileged.sh`, `export-shared-responsibility-model.sh` (PSA labels) |
 | **Worker Node AuthN/AuthZ** | `export-worker-node-auth.sh` |
 | **Cluster Admin/SRE Credential Management** | `export-credential-management.sh`, `export-oauth-external-auth.sh` |
 | **Cluster Version & Health** | `export-clusterversion.sh`, `export-clusteroperators.sh` |

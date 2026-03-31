@@ -97,6 +97,10 @@ echo "[$(date +%H:%M:%S)] [$LABEL] Processing $TENANT_COUNT tenant namespaces...
 
 NS_COUNTER=0
 NS_NO_OWNER=0
+PSA_ENFORCE_RESTRICTED=0
+PSA_ENFORCE_BASELINE=0
+PSA_ENFORCE_PRIVILEGED=0
+PSA_ENFORCE_NONE=0
 while IFS= read -r NS_ITEM; do
   [ -z "$NS_ITEM" ] && continue
   NS_COUNTER=$((NS_COUNTER + 1))
@@ -111,6 +115,20 @@ while IFS= read -r NS_ITEM; do
   ENVIRONMENT=$(echo "$NS_ITEM" | jq -r '(.metadata.labels["environment"] // .metadata.labels["env"] // "")' 2>/dev/null)
   NODE_SELECTOR=$(echo "$NS_ITEM" | jq -r '(.metadata.annotations["openshift.io/node-selector"] // "")' 2>/dev/null)
 
+  # Pod Security Admission labels
+  PSA_ENFORCE=$(echo "$NS_ITEM" | jq -r '(.metadata.labels["pod-security.kubernetes.io/enforce"] // "")' 2>/dev/null)
+  PSA_AUDIT=$(echo "$NS_ITEM" | jq -r '(.metadata.labels["pod-security.kubernetes.io/audit"] // "")' 2>/dev/null)
+  PSA_WARN=$(echo "$NS_ITEM" | jq -r '(.metadata.labels["pod-security.kubernetes.io/warn"] // "")' 2>/dev/null)
+  PSA_ENFORCE_VER=$(echo "$NS_ITEM" | jq -r '(.metadata.labels["pod-security.kubernetes.io/enforce-version"] // "")' 2>/dev/null)
+
+  # Track PSA enforce level distribution
+  case "$PSA_ENFORCE" in
+    restricted)  PSA_ENFORCE_RESTRICTED=$((PSA_ENFORCE_RESTRICTED + 1)) ;;
+    baseline)    PSA_ENFORCE_BASELINE=$((PSA_ENFORCE_BASELINE + 1)) ;;
+    privileged)  PSA_ENFORCE_PRIVILEGED=$((PSA_ENFORCE_PRIVILEGED + 1)) ;;
+    *)           PSA_ENFORCE_NONE=$((PSA_ENFORCE_NONE + 1)) ;;
+  esac
+
   if [ -z "$OWNER" ] && [ -z "$TEAM" ]; then
     NS_NO_OWNER=$((NS_NO_OWNER + 1))
   fi
@@ -121,6 +139,13 @@ while IFS= read -r NS_ITEM; do
 
   write_row "namespace" "$NS_NAME" "$NS_NAME" \
     "owner:$OWNER" "team:$TEAM" "environment:${ENVIRONMENT};status:${NS_STATUS};created:${CREATED}" "node_selector:$NODE_SELECTOR"
+
+  # Write PSA record for this namespace if any PSA label is set
+  if [ -n "$PSA_ENFORCE" ] || [ -n "$PSA_AUDIT" ] || [ -n "$PSA_WARN" ]; then
+    write_row "psa_label" "$NS_NAME" "pod-security-admission" \
+      "enforce:${PSA_ENFORCE:-none}" "audit:${PSA_AUDIT:-none};warn:${PSA_WARN:-none}" \
+      "enforce_version:${PSA_ENFORCE_VER:-latest}" ""
+  fi
 done <<< "$TENANT_NS_LIST"
 
 if [ "$NS_NO_OWNER" -gt 0 ]; then
@@ -344,8 +369,21 @@ printf "[$LABEL] │  No owner/team label  : %-28s│\n" "$NS_NO_OWNER"
 printf "[$LABEL] │  ResourceQuotas       : %-28s│\n" "$RQ_COUNT (covering $NS_WITH_QUOTA/$TENANT_COUNT tenant ns)"
 printf "[$LABEL] │  LimitRanges          : %-28s│\n" "$LR_COUNT (covering $((TENANT_COUNT - NS_WITHOUT_LR))/$TENANT_COUNT tenant ns)"
 printf "[$LABEL] │  NetworkPolicies      : %-28s│\n" "$NP_COUNT (covering $((TENANT_COUNT - NS_WITHOUT_NP))/$TENANT_COUNT tenant ns)"
+printf "[$LABEL] │  PSA enforce=restricted: %-27s│\n" "$PSA_ENFORCE_RESTRICTED / $TENANT_COUNT tenant ns"
+printf "[$LABEL] │  PSA enforce=baseline  : %-27s│\n" "$PSA_ENFORCE_BASELINE / $TENANT_COUNT tenant ns"
+printf "[$LABEL] │  PSA enforce=privileged: %-27s│\n" "$PSA_ENFORCE_PRIVILEGED / $TENANT_COUNT tenant ns"
+printf "[$LABEL] │  PSA enforce=(none)    : %-27s│\n" "$PSA_ENFORCE_NONE / $TENANT_COUNT tenant ns"
 echo "[$(date +%H:%M:%S)] [$LABEL] └──────────────────────────────────────────────────────┘"
 echo ""
+
+# Pod Security Admission warnings
+if [ "$PSA_ENFORCE_PRIVILEGED" -gt 0 ]; then
+  echo -e "${RED}[$(date +%H:%M:%S)] [$LABEL] WARNING: $PSA_ENFORCE_PRIVILEGED tenant namespace(s) have pod-security.kubernetes.io/enforce=privileged — pods can run with full host access${NC}"
+fi
+
+if [ "$PSA_ENFORCE_NONE" -gt 0 ]; then
+  echo -e "${YELLOW}[$(date +%H:%M:%S)] [$LABEL] WARNING: $PSA_ENFORCE_NONE tenant namespace(s) have no PSA enforce label — pods rely on SCC enforcement only, no PSA admission check${NC}"
+fi
 
 # Critical: no project template AND no quotas/limitranges/netpols at all
 if [ -z "$TEMPLATE_NAME" ] && [ "$RQ_COUNT" -eq 0 ] && [ "$LR_COUNT" -eq 0 ] && [ "$NP_COUNT" -eq 0 ]; then
