@@ -140,11 +140,11 @@ TOTAL_NS=$(echo "$ALL_NS_JSON" | jq '[.items[]] | length')
 
 # Exclude openshift-* and kube-* system namespaces for the coverage check
 USER_NS=$(echo "$ALL_NS_JSON" | jq '[.items[] | select(.metadata.name | test("^(openshift-|kube-|default$)") | not)] | length')
-USER_NS_WITH_RQ=$(echo "$RQ_JSON" | jq --argjson all_ns "$ALL_NS_JSON" '
+USER_NS_WITH_RQ=$(echo "$RQ_JSON" | jq '
   [.items[] | .metadata.namespace] | unique |
   map(select(test("^(openshift-|kube-|default$)") | not)) | length
 ')
-USER_NS_WITH_LR=$(echo "$LR_JSON" | jq --argjson all_ns "$ALL_NS_JSON" '
+USER_NS_WITH_LR=$(echo "$LR_JSON" | jq '
   [.items[] | .metadata.namespace] | unique |
   map(select(test("^(openshift-|kube-|default$)") | not)) | length
 ')
