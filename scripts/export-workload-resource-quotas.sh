@@ -78,7 +78,7 @@ echo "$LR_JSON" | jq -r \
   .metadata.name as $lr_name |
   (.spec.limits // [])[] |
   .type as $limit_type |
-  ((.default // {}) | to_entries[]) as $def |
+  ((.default // {}) | to_entries[]) as $dflt |
   [
     $cluster_name,
     $cluster_context,
@@ -86,14 +86,14 @@ echo "$LR_JSON" | jq -r \
     "limit_range",
     $ns,
     $lr_name,
-    $def.key,
+    $dflt.key,
     "",
     "",
     $limit_type,
-    ($def.value // ""),
-    ((.defaultRequest // {})[$def.key] // ""),
-    ((.max // {})[$def.key] // ""),
-    ((.min // {})[$def.key] // "")
+    ($dflt.value // ""),
+    ((.defaultRequest // {})[$dflt.key] // ""),
+    ((.max // {})[$dflt.key] // ""),
+    ((.min // {})[$dflt.key] // "")
   ] | @csv
 ' >> "$OUTPUT_FILE"
 
