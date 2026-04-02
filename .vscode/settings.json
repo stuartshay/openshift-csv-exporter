@@ -12,5 +12,9 @@
   "shellcheck.executablePath": "shellcheck",
   "files.associations": {
     "*.sh": "shellscript"
+  },
+  "python.defaultInterpreterPath": "/usr/bin/python3.14",
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.python"
   }
 }
