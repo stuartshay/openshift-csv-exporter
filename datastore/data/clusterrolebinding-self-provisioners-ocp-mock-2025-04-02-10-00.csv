@@ -1,0 +1,3 @@
+cluster_name,cluster_context,cluster_server,binding_name,role_ref_kind,role_ref_name,subject_kind,subject_name,subject_namespace
+ocp-prod-east,admin/api-ocp-prod-east:6443,https://api.ocp-prod-east.example.com:6443,self-provisioners,ClusterRole,self-provisioner,Group,system:authenticated:oauth,
+ocp-staging,admin/api-ocp-staging:6443,https://api.ocp-staging.example.com:6443,self-provisioners,ClusterRole,self-provisioner,Group,system:authenticated:oauth,

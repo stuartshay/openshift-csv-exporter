@@ -4,7 +4,7 @@ SQLite database schema for OpenShift audit CSV data, built with SQLAlchemy 2.0+.
 
 ## Prerequisites
 
-- Python 3.13+
+- Python 3.14+
 - `make`
 
 ## Quick Start
@@ -14,6 +14,9 @@ cd datastore
 
 # Generate the empty database with all tables
 make schema
+
+# Load CSV data into the database
+make load
 
 # Verify
 sqlite3 ocp_audit.db ".tables"
@@ -29,14 +32,33 @@ make clean
 | `help`   | Show available targets                       |
 | `venv`   | Create virtualenv and install dependencies   |
 | `schema` | Generate the SQLite database schema          |
+| `load`   | Load CSV data from `data/` into the database |
 | `clean`  | Remove database, virtualenv, and `__pycache__` |
+
+## CSV Data Directory
+
+Place CSV export files in `datastore/data/`. The loader matches files by glob pattern:
+
+| Pattern                                      | Target Table(s)                        |
+|----------------------------------------------|----------------------------------------|
+| `oauth-external-auth-*.csv`                  | `oauth_external_auth`                  |
+| `clusterroles-*.csv`                         | `clusterroles`, rules, junction tables |
+| `clusterrolebindings-*.csv`                  | `clusterrolebindings`, subjects        |
+| `clusterrolebinding-self-provisioners-*.csv` | `self_provisioner_bindings`, subjects  |
+
+Override the data directory with the `OCP_DATA_DIR` environment variable:
+
+```bash
+OCP_DATA_DIR=../output make load
+```
 
 ## Configuration
 
-| Environment Variable | Default           | Description               |
-|----------------------|-------------------|---------------------------|
-| `OCP_AUDIT_DB`       | `ocp_audit.db`    | SQLite database file path |
-| `DATABASE_URL`       | `sqlite:///ocp_audit.db` | Full SQLAlchemy URL (overrides `OCP_AUDIT_DB`; use for Postgres migration) |
+| Environment Variable | Default                  | Description                                                  |
+|----------------------|--------------------------|--------------------------------------------------------------|
+| `OCP_AUDIT_DB`       | `ocp_audit.db`           | SQLite database file path                                    |
+| `DATABASE_URL`       | `sqlite:///ocp_audit.db` | Full SQLAlchemy URL (overrides `OCP_AUDIT_DB`; for Postgres) |
+| `OCP_DATA_DIR`       | `data`                   | Directory containing CSV export files                        |
 
 ## Schema Overview
 

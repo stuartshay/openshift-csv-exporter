@@ -1,0 +1,15 @@
+cluster_name,cluster_context,cluster_server,binding_name,role_ref_kind,role_ref_name,subject_kind,subject_name,subject_namespace
+ocp-prod-east,admin/api-ocp-prod-east:6443,https://api.ocp-prod-east.example.com:6443,cluster-admin,ClusterRole,cluster-admin,Group,system:masters,
+ocp-prod-east,admin/api-ocp-prod-east:6443,https://api.ocp-prod-east.example.com:6443,platform-admins-binding,ClusterRole,cluster-admin,Group,platform-admins,
+ocp-prod-east,admin/api-ocp-prod-east:6443,https://api.ocp-prod-east.example.com:6443,platform-admins-binding,ClusterRole,cluster-admin,User,jsmith@example.com,
+ocp-prod-east,admin/api-ocp-prod-east:6443,https://api.ocp-prod-east.example.com:6443,basic-users,ClusterRole,basic-user,Group,system:authenticated,
+ocp-prod-east,admin/api-ocp-prod-east:6443,https://api.ocp-prod-east.example.com:6443,system:discovery,ClusterRole,system:discovery,Group,system:authenticated,
+ocp-prod-east,admin/api-ocp-prod-east:6443,https://api.ocp-prod-east.example.com:6443,monitoring-sa-binding,ClusterRole,custom-monitoring-reader,ServiceAccount,prometheus-sa,openshift-monitoring
+ocp-prod-east,admin/api-ocp-prod-east:6443,https://api.ocp-prod-east.example.com:6443,node-reader-ci,ClusterRole,node-reader,ServiceAccount,ci-runner,ci-cd
+ocp-prod-east,admin/api-ocp-prod-east:6443,https://api.ocp-prod-east.example.com:6443,self-provisioners,ClusterRole,self-provisioner,Group,system:authenticated:oauth,
+ocp-staging,admin/api-ocp-staging:6443,https://api.ocp-staging.example.com:6443,cluster-admin,ClusterRole,cluster-admin,Group,system:masters,
+ocp-staging,admin/api-ocp-staging:6443,https://api.ocp-staging.example.com:6443,dev-team-edit,ClusterRole,edit,Group,dev-team,
+ocp-staging,admin/api-ocp-staging:6443,https://api.ocp-staging.example.com:6443,basic-users,ClusterRole,basic-user,Group,system:authenticated,
+ocp-dev,admin/api-ocp-dev:6443,https://api.ocp-dev.example.com:6443,cluster-admin,ClusterRole,cluster-admin,Group,system:masters,
+ocp-dev,admin/api-ocp-dev:6443,https://api.ocp-dev.example.com:6443,cluster-admin,ClusterRole,cluster-admin,User,kubeadmin,
+ocp-dev,admin/api-ocp-dev:6443,https://api.ocp-dev.example.com:6443,dev-all-edit,ClusterRole,edit,Group,system:authenticated:oauth,
