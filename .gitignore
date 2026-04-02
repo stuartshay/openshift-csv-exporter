@@ -9,3 +9,7 @@ datastore/ocp_audit.db-wal
 !datastore/data/*.csv
 __pycache__/
 *.pyc
+
+# Notebooks
+notebook/.venv/
+.ipynb_checkpoints/
