@@ -16,6 +16,7 @@ Example:
 
 ## Included reports
 
+- `cluster overview` — cluster identity card: OCP version, Kubernetes version, platform, node counts, network config, install date, console URL, and update channel
 - `clusterrolebindings` — all ClusterRoleBinding subjects
 - `clusterrolebinding self-provisioners` — self-provisioner binding
 - `cluster-admin-bindings` — subjects with cluster-admin access
@@ -54,6 +55,7 @@ See [`scripts/README.md`](scripts/README.md) for full column details and usage.
 
 | Audit Area | Script(s) |
 |---|---|
+| **Cluster Overview & Prerequisites** | `export-cluster-overview.sh` |
 | **External Authentication Enforced** | `export-oauth-external-auth.sh`, `export-oauth-cluster.sh` |
 | **Granular Role-Based Access Controls** | `export-clusterroles.sh`, `export-clusterrolebindings.sh`, `export-clusterrolebinding-self-provisioners.sh` |
 | **API & Console Access Restriction** | `export-apiserver-console-access.sh`, `export-cluster-admin-bindings.sh` |

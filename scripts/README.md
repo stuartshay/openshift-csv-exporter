@@ -71,6 +71,51 @@ Diagnostic script that sources `common.sh` and prints the detected cluster varia
 
 ---
 
+### export-cluster-overview.sh
+
+Exports a single-row cluster identity and configuration overview — OCP version, Kubernetes version, platform, node counts, network config, and console access. Designed as a prerequisite baseline that runs before all security audit scripts.
+
+```bash
+./scripts/export-cluster-overview.sh
+```
+
+**OC commands:**
+
+- `oc get clusterversion version -o json`
+- `oc get infrastructure cluster -o json`
+- `oc get nodes -o json`
+- `oc get network.config.openshift.io cluster -o json`
+- `oc get ingresscontroller default -n openshift-ingress-operator -o json`
+- `oc get console cluster -o json`
+
+**Output file:** `cluster-overview-<cluster>-<timestamp>.csv`
+
+| Column | Description |
+|---|---|
+| `ocp_version` | Running OpenShift Container Platform version |
+| `kubernetes_version` | Kubernetes (kubelet) version from first master node |
+| `cluster_id` | Unique cluster ID from ClusterVersion spec |
+| `install_date` | Cluster installation completion timestamp (oldest history entry) |
+| `cluster_age_days` | Days since cluster installation |
+| `platform` | Cloud platform (AWS, Azure, GCP, None, etc.) |
+| `control_plane_topology` | Control plane topology (HighlyAvailable, SingleReplica) |
+| `infrastructure_topology` | Infrastructure topology |
+| `master_count` | Number of master / control-plane nodes |
+| `worker_count` | Number of worker nodes |
+| `infra_count` | Number of infra-role nodes |
+| `total_node_count` | Total node count across all roles |
+| `network_type` | CNI plugin type (OVNKubernetes, OpenShiftSDN) |
+| `cluster_cidrs` | Pod network CIDRs (`;`-delimited) |
+| `service_cidrs` | Service network CIDRs (`;`-delimited) |
+| `default_ingress_domain` | Default IngressController domain |
+| `console_url` | OpenShift web console URL |
+| `api_server_url` | External API server URL |
+| `update_channel` | Update channel (e.g., stable-4.18, eus-4.18) |
+| `available_updates_count` | Number of available OCP updates |
+| `update_state` | Latest update state (Completed, Partial) |
+
+---
+
 ### export-clusterversion.sh
 
 Exports cluster version and update status.
@@ -1743,6 +1788,7 @@ DEBUG=true ./scripts/export-oauth-external-auth.sh
 
 | Audit Area | Script(s) |
 |---|---|
+| **Cluster Overview & Prerequisites** | `export-cluster-overview.sh` |
 | **External Authentication Enforced** | `export-oauth-external-auth.sh`, `export-oauth-cluster.sh` |
 | **Granular Role-Based Access Controls** | `export-clusterroles.sh`, `export-clusterrolebindings.sh`, `export-clusterrolebinding-self-provisioners.sh` |
 | **API & Console Access Restriction** | `export-apiserver-console-access.sh`, `export-cluster-admin-bindings.sh` |

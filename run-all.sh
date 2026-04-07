@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+"$SCRIPT_DIR/scripts/export-cluster-overview.sh"
 "$SCRIPT_DIR/scripts/export-clusterrolebindings.sh"
 "$SCRIPT_DIR/scripts/export-clusterrolebinding-self-provisioners.sh"
 "$SCRIPT_DIR/scripts/export-cluster-admin-bindings.sh"
