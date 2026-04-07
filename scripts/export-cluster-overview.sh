@@ -21,8 +21,12 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 echo "[$(date +%H:%M:%S)] [$LABEL] Starting export at $(date)"
+echo "[$(date +%H:%M:%S)] [$LABEL] Cluster: $CLUSTER_NAME | Context: $CLUSTER_CONTEXT"
+echo "[$(date +%H:%M:%S)] [$LABEL] Server: $CLUSTER_SERVER"
+echo "[$(date +%H:%M:%S)] [$LABEL] Output dir: $OUTPUT_DIR"
 
 OUTPUT_FILE="$OUTPUT_DIR/cluster-overview-${CLUSTER_NAME_SAFE}-$TIMESTAMP.csv"
+echo "[$(date +%H:%M:%S)] [$LABEL] Output file: $OUTPUT_FILE"
 
 echo "cluster_name,cluster_context,cluster_server,ocp_version,kubernetes_version,cluster_id,install_date,cluster_age_days,platform,control_plane_topology,infrastructure_topology,master_count,worker_count,infra_count,total_node_count,network_type,cluster_cidrs,service_cidrs,default_ingress_domain,console_url,api_server_url,update_channel,available_updates_count,update_state" > "$OUTPUT_FILE"
 
@@ -32,8 +36,16 @@ NOW_EPOCH=$(date +%s)
 # 1) Cluster Version — OCP version, cluster ID, update channel, install date
 # =============================================================================
 echo "[$(date +%H:%M:%S)] [$LABEL] Fetching clusterversion..."
-if ! CV_JSON=$(oc get clusterversion version -o json 2>&1); then
-  echo -e "${RED}[$LABEL] ERROR: Failed to fetch clusterversion — ${CV_JSON}${NC}"
+CV_JSON=$(oc get clusterversion version -o json 2>/dev/null | tr -d '\r' || echo '{}')
+CV_LEN=${#CV_JSON}
+echo "[$(date +%H:%M:%S)] [$LABEL] clusterversion response: ${CV_LEN} bytes"
+if [ "$CV_LEN" -lt 10 ]; then
+  echo -e "${RED}[$LABEL] ERROR: clusterversion response too small (${CV_LEN} bytes) — possibly empty or failed${NC}"
+  CV_JSON='{}'
+fi
+if ! echo "$CV_JSON" | jq empty 2>/dev/null; then
+  echo -e "${RED}[$LABEL] ERROR: clusterversion response is not valid JSON — first 200 chars:${NC}"
+  echo "${CV_JSON:0:200}"
   CV_JSON='{}'
 fi
 
@@ -53,14 +65,18 @@ if [ -n "$INSTALL_DATE" ]; then
   fi
 fi
 
-echo "[$(date +%H:%M:%S)] [$LABEL] Clusterversion done. version=$OCP_VERSION channel=$UPDATE_CHANNEL"
+echo "[$(date +%H:%M:%S)] [$LABEL] Clusterversion done. version=$OCP_VERSION channel=$UPDATE_CHANNEL cluster_id=$CLUSTER_ID"
 
 # =============================================================================
 # 2) Infrastructure — platform, topology, API server URL
 # =============================================================================
 echo "[$(date +%H:%M:%S)] [$LABEL] Fetching infrastructure..."
-if ! INFRA_JSON=$(oc get infrastructure cluster -o json 2>&1); then
-  echo -e "${RED}[$LABEL] ERROR: Failed to fetch infrastructure — ${INFRA_JSON}${NC}"
+INFRA_JSON=$(oc get infrastructure cluster -o json 2>/dev/null | tr -d '\r' || echo '{}')
+INFRA_LEN=${#INFRA_JSON}
+echo "[$(date +%H:%M:%S)] [$LABEL] infrastructure response: ${INFRA_LEN} bytes"
+if ! echo "$INFRA_JSON" | jq empty 2>/dev/null; then
+  echo -e "${RED}[$LABEL] ERROR: infrastructure response is not valid JSON — first 200 chars:${NC}"
+  echo "${INFRA_JSON:0:200}"
   INFRA_JSON='{}'
 fi
 
@@ -75,8 +91,12 @@ echo "[$(date +%H:%M:%S)] [$LABEL] Infrastructure done. platform=$PLATFORM topol
 # 3) Nodes — counts by role, Kubernetes version
 # =============================================================================
 echo "[$(date +%H:%M:%S)] [$LABEL] Fetching nodes..."
-if ! NODES_JSON=$(oc get nodes -o json 2>&1); then
-  echo -e "${RED}[$LABEL] ERROR: Failed to fetch nodes — ${NODES_JSON}${NC}"
+NODES_JSON=$(oc get nodes -o json 2>/dev/null | tr -d '\r' || echo '{"items":[]}')
+NODES_LEN=${#NODES_JSON}
+echo "[$(date +%H:%M:%S)] [$LABEL] nodes response: ${NODES_LEN} bytes"
+if ! echo "$NODES_JSON" | jq empty 2>/dev/null; then
+  echo -e "${RED}[$LABEL] ERROR: nodes response is not valid JSON — first 200 chars:${NC}"
+  echo "${NODES_JSON:0:200}"
   NODES_JSON='{"items":[]}'
 fi
 
@@ -94,8 +114,12 @@ echo "[$(date +%H:%M:%S)] [$LABEL] Nodes done. master=$MASTER_COUNT worker=$WORK
 # 4) Network configuration — type, CIDRs
 # =============================================================================
 echo "[$(date +%H:%M:%S)] [$LABEL] Fetching network config..."
-if ! NET_JSON=$(oc get network.config.openshift.io cluster -o json 2>&1); then
-  echo -e "${RED}[$LABEL] ERROR: Failed to fetch network config — ${NET_JSON}${NC}"
+NET_JSON=$(oc get network.config.openshift.io cluster -o json 2>/dev/null | tr -d '\r' || echo '{}')
+NET_LEN=${#NET_JSON}
+echo "[$(date +%H:%M:%S)] [$LABEL] network response: ${NET_LEN} bytes"
+if ! echo "$NET_JSON" | jq empty 2>/dev/null; then
+  echo -e "${RED}[$LABEL] ERROR: network response is not valid JSON — first 200 chars:${NC}"
+  echo "${NET_JSON:0:200}"
   NET_JSON='{}'
 fi
 
@@ -109,8 +133,12 @@ echo "[$(date +%H:%M:%S)] [$LABEL] Network config done. type=$NETWORK_TYPE"
 # 5) Default IngressController — ingress domain
 # =============================================================================
 echo "[$(date +%H:%M:%S)] [$LABEL] Fetching default ingresscontroller..."
-if ! INGRESS_JSON=$(oc get ingresscontroller default -n openshift-ingress-operator -o json 2>&1); then
-  echo -e "${RED}[$LABEL] ERROR: Failed to fetch ingresscontroller — ${INGRESS_JSON}${NC}"
+INGRESS_JSON=$(oc get ingresscontroller default -n openshift-ingress-operator -o json 2>/dev/null | tr -d '\r' || echo '{}')
+INGRESS_LEN=${#INGRESS_JSON}
+echo "[$(date +%H:%M:%S)] [$LABEL] ingresscontroller response: ${INGRESS_LEN} bytes"
+if ! echo "$INGRESS_JSON" | jq empty 2>/dev/null; then
+  echo -e "${RED}[$LABEL] ERROR: ingresscontroller response is not valid JSON — first 200 chars:${NC}"
+  echo "${INGRESS_JSON:0:200}"
   INGRESS_JSON='{}'
 fi
 
@@ -122,8 +150,12 @@ echo "[$(date +%H:%M:%S)] [$LABEL] IngressController done. domain=$DEFAULT_INGRE
 # 6) Console URL
 # =============================================================================
 echo "[$(date +%H:%M:%S)] [$LABEL] Fetching console URL..."
-if ! CONSOLE_JSON=$(oc get console cluster -o json 2>&1); then
-  echo -e "${RED}[$LABEL] ERROR: Failed to fetch console config — ${CONSOLE_JSON}${NC}"
+CONSOLE_JSON=$(oc get console cluster -o json 2>/dev/null | tr -d '\r' || echo '{}')
+CONSOLE_LEN=${#CONSOLE_JSON}
+echo "[$(date +%H:%M:%S)] [$LABEL] console response: ${CONSOLE_LEN} bytes"
+if ! echo "$CONSOLE_JSON" | jq empty 2>/dev/null; then
+  echo -e "${RED}[$LABEL] ERROR: console response is not valid JSON — first 200 chars:${NC}"
+  echo "${CONSOLE_JSON:0:200}"
   CONSOLE_JSON='{}'
 fi
 
