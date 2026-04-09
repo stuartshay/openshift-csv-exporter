@@ -41,6 +41,7 @@ Place CSV export files in `datastore/data/`. The loader matches files by glob pa
 
 | Pattern                                      | Target Table(s)                        |
 |----------------------------------------------|----------------------------------------|
+| `cluster-overview-*.csv`                     | `cluster_overview`                     |
 | `oauth-external-auth-*.csv`                  | `oauth_external_auth`                  |
 | `clusterroles-*.csv`                         | `clusterroles`, rules, junction tables |
 | `clusterrolebindings-*.csv`                  | `clusterrolebindings`, subjects        |
@@ -67,6 +68,12 @@ OCP_DATA_DIR=../output make load
 | Table      | Description                              |
 |------------|------------------------------------------|
 | `clusters` | Deduplicated cluster identity (name, context, server). All report tables reference this via FK. |
+
+### Cluster Overview
+
+| Table              | Description                                                     |
+|--------------------|-----------------------------------------------------------------|
+| `cluster_overview` | One row per cluster snapshot — version, platform, topology, nodes, network, endpoints, update posture |
 
 ### OCP-1: OAuth External Auth
 

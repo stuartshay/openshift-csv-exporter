@@ -5,6 +5,9 @@ Tables
 Shared:
     clusters                          – deduplicated cluster identity
 
+Cluster Overview:
+    cluster_overview                  – one row per cluster snapshot
+
 OCP-1  OAuth External Auth:
     oauth_external_auth               – one row per IDP per cluster
 
@@ -47,12 +50,48 @@ class Cluster(Base):
     )
 
     # relationships
+    cluster_overviews = relationship("ClusterOverview", back_populates="cluster")
     oauth_external_auths = relationship("OAuthExternalAuth", back_populates="cluster")
     clusterroles = relationship("ClusterRole", back_populates="cluster")
     clusterrolebindings = relationship("ClusterRoleBinding", back_populates="cluster")
     self_provisioner_bindings = relationship(
         "SelfProvisionerBinding", back_populates="cluster"
     )
+
+
+# ── Cluster Overview ──────────────────────────────────────────────────────────
+
+
+class ClusterOverview(Base):
+    __tablename__ = "cluster_overview"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    cluster_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("clusters.id", ondelete="CASCADE"), nullable=False
+    )
+    ocp_version: Mapped[str | None] = mapped_column(String, nullable=True)
+    kubernetes_version: Mapped[str | None] = mapped_column(String, nullable=True)
+    cluster_id_ocp: Mapped[str | None] = mapped_column(String, nullable=True)
+    install_date: Mapped[str | None] = mapped_column(String, nullable=True)
+    cluster_age_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    platform: Mapped[str | None] = mapped_column(String, nullable=True)
+    control_plane_topology: Mapped[str | None] = mapped_column(String, nullable=True)
+    infrastructure_topology: Mapped[str | None] = mapped_column(String, nullable=True)
+    master_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    worker_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    infra_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    total_node_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    network_type: Mapped[str | None] = mapped_column(String, nullable=True)
+    cluster_cidrs: Mapped[str | None] = mapped_column(String, nullable=True)
+    service_cidrs: Mapped[str | None] = mapped_column(String, nullable=True)
+    default_ingress_domain: Mapped[str | None] = mapped_column(String, nullable=True)
+    console_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    api_server_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    update_channel: Mapped[str | None] = mapped_column(String, nullable=True)
+    available_updates_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    update_state: Mapped[str | None] = mapped_column(String, nullable=True)
+
+    cluster = relationship("Cluster", back_populates="cluster_overviews")
 
 
 # ── OCP-1: OAuth External Auth ───────────────────────────────────────────────

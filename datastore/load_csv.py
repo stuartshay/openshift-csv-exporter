@@ -3,6 +3,7 @@
 Reads CSV files from a directory (default: ``data/``) and inserts rows into
 the normalised schema.  Each loader function handles one report type:
 
+- ``cluster-overview-*.csv``     -> cluster_overview
 - ``oauth-external-auth-*.csv``  -> oauth_external_auth
 - ``clusterroles-*.csv``         -> clusterroles + junction tables
 - ``clusterrolebindings-*.csv``  -> clusterrolebindings + subjects
@@ -22,6 +23,7 @@ from sqlalchemy.orm import Session
 from schema.database import Base, SessionLocal, engine
 from schema.models import (
     Cluster,
+    ClusterOverview,
     ClusterRole,
     ClusterRoleBinding,
     ClusterRoleBindingSubject,
@@ -98,6 +100,62 @@ def _find_csvs(pattern: str) -> list[str]:
 
 
 # -- Loaders ----------------------------------------------------------------
+
+
+def load_cluster_overview(session: Session) -> int:
+    """Load cluster-overview CSVs. Returns row count."""
+    files = _find_csvs("cluster-overview-*.csv")
+    count = 0
+    for filepath in files:
+        print(f"  Loading {Path(filepath).name}")
+        with open(filepath, newline="") as f:
+            for row in csv.DictReader(f):
+                cluster = _get_or_create_cluster(
+                    session,
+                    row["cluster_name"],
+                    row["cluster_context"],
+                    row["cluster_server"],
+                )
+                session.add(
+                    ClusterOverview(
+                        cluster_id=cluster.id,
+                        ocp_version=row.get("ocp_version") or None,
+                        kubernetes_version=row.get("kubernetes_version") or None,
+                        cluster_id_ocp=row.get("cluster_id") or None,
+                        install_date=row.get("install_date") or None,
+                        cluster_age_days=_to_int(
+                            row.get("cluster_age_days", ""),
+                        ),
+                        platform=row.get("platform") or None,
+                        control_plane_topology=(
+                            row.get("control_plane_topology") or None
+                        ),
+                        infrastructure_topology=(
+                            row.get("infrastructure_topology") or None
+                        ),
+                        master_count=_to_int(row.get("master_count", "")),
+                        worker_count=_to_int(row.get("worker_count", "")),
+                        infra_count=_to_int(row.get("infra_count", "")),
+                        total_node_count=_to_int(
+                            row.get("total_node_count", ""),
+                        ),
+                        network_type=row.get("network_type") or None,
+                        cluster_cidrs=row.get("cluster_cidrs") or None,
+                        service_cidrs=row.get("service_cidrs") or None,
+                        default_ingress_domain=(
+                            row.get("default_ingress_domain") or None
+                        ),
+                        console_url=row.get("console_url") or None,
+                        api_server_url=row.get("api_server_url") or None,
+                        update_channel=row.get("update_channel") or None,
+                        available_updates_count=_to_int(
+                            row.get("available_updates_count", ""),
+                        ),
+                        update_state=row.get("update_state") or None,
+                    )
+                )
+                count += 1
+    return count
 
 
 def load_oauth_external_auth(session: Session) -> int:
@@ -313,6 +371,9 @@ def main() -> None:
     session = SessionLocal()
     try:
         print(f"Loading CSV files from {data_path} ...")
+
+        n = load_cluster_overview(session)
+        print(f"  -> cluster_overview: {n} rows")
 
         n = load_oauth_external_auth(session)
         print(f"  -> oauth_external_auth: {n} rows")
