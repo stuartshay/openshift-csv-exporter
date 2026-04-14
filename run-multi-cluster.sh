@@ -98,9 +98,16 @@ for CTX in "${CTX_LIST[@]}"; do
   echo "[$LABEL] User   : $USER"
 
   # Derive short cluster name for subfolder
-  # Context format: default/api-onprem-bdc-stage-1-ocpprod-na-...:6443/user
-  # Extract server part, strip "api-" prefix and "-ocp*" suffix
-  CLUSTER_SHORT="$(printf '%s' "$CTX" | sed -E 's#^[^/]*/##; s#/[^/]*$##; s#^api-##; s#-ocp.*##')"
+  # If context name is a clean label (from setup-contexts.sh), use it directly.
+  # Otherwise fall back to extracting from the default oc-generated format:
+  #   default/api-onprem-bdc-stage-1-ocpprod-na-...:6443/user
+  if printf '%s' "$CTX" | grep -q '/'; then
+    # Auto-generated context (contains slashes) — extract server part
+    CLUSTER_SHORT="$(printf '%s' "$CTX" | sed -E 's#^[^/]*/##; s#/[^/]*$##; s#^api-##; s#-ocp.*##')"
+  else
+    # Clean label — use as-is
+    CLUSTER_SHORT="$CTX"
+  fi
   CLUSTER_SHORT="$(printf '%s' "$CLUSTER_SHORT" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9._-]/-/g')"
   OUTPUT_DIR="${BASE_OUTPUT_DIR}/${CLUSTER_SHORT}"
   export OUTPUT_DIR
