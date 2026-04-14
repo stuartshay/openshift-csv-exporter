@@ -20,6 +20,15 @@ LABEL="multi-cluster"
 TOTAL_START=$SECONDS
 
 ###############################################################################
+# Create date-stamped output subdirectory
+###############################################################################
+RUN_DATE="$(date +"%Y-%m-%d-%H-%M")"
+BASE_OUTPUT_DIR="${OUTPUT_DIR:-./output}/${RUN_DATE}"
+
+echo "[$LABEL] Run date: $RUN_DATE"
+echo "[$LABEL] Base output directory: $BASE_OUTPUT_DIR"
+
+###############################################################################
 # Determine which script(s) to run
 ###############################################################################
 if [ $# -ge 1 ]; then
@@ -87,6 +96,16 @@ for CTX in "${CTX_LIST[@]}"; do
   USER="$(oc whoami 2>/dev/null || echo "unknown")"
   echo "[$LABEL] Server : $SERVER"
   echo "[$LABEL] User   : $USER"
+
+  # Derive short cluster name for subfolder
+  # Context format: default/api-onprem-bdc-stage-1-ocpprod-na-...:6443/user
+  # Extract server part, strip "api-" prefix and "-ocp*" suffix
+  CLUSTER_SHORT="$(printf '%s' "$CTX" | sed -E 's#^[^/]*/##; s#/[^/]*$##; s#^api-##; s#-ocp.*##')"
+  CLUSTER_SHORT="$(printf '%s' "$CLUSTER_SHORT" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9._-]/-/g')"
+  OUTPUT_DIR="${BASE_OUTPUT_DIR}/${CLUSTER_SHORT}"
+  export OUTPUT_DIR
+  mkdir -p "$OUTPUT_DIR"
+  echo "[$LABEL] Output : $OUTPUT_DIR"
   echo ""
 
   if bash "$RUN_TARGET"; then
@@ -114,7 +133,7 @@ ELAPSED=$(( SECONDS - TOTAL_START ))
 echo ""
 echo "[$LABEL] ═══════════════════════════════════════════════════"
 echo "[$LABEL] Summary: ${PASS} passed, ${FAIL} failed, ${SKIPPED} skipped (of ${#CTX_LIST[@]} total)"
-echo "[$LABEL] Output directory: ${OUTPUT_DIR:-./output}"
+echo "[$LABEL] Output directory: $BASE_OUTPUT_DIR"
 echo "[$LABEL] Total time: ${ELAPSED}s"
 echo "[$LABEL] ═══════════════════════════════════════════════════"
 
