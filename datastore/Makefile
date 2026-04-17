@@ -1,4 +1,4 @@
-.PHONY: help venv schema seed load reset-db clean
+.PHONY: help venv schema seed load all reset-db clean
 
 # Prefer python3.14, fall back to python3
 PYTHON ?= $(shell command -v python3.14 2>/dev/null || echo python3)
@@ -17,10 +17,12 @@ $(VENV_DIR)/bin/activate: requirements.txt
 
 venv: $(VENV_DIR)/bin/activate ## Create virtualenv and install dependencies
 
+all: seed ## Run full pipeline: schema → load → seed
+
 schema: venv ## Generate the SQLite database schema
 	$(VENV_DIR)/bin/python generate_schema.py
 
-seed: schema ## Seed clusters table from input/clusters_env.csv
+seed: load ## Seed clusters table from input/clusters_env.csv
 	$(VENV_DIR)/bin/python seed_clusters.py
 
 load: schema ## Load CSV data from data/ into the database
