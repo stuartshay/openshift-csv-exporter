@@ -1,12 +1,12 @@
-"""Seed the ``env`` column on existing clusters from a CSV file.
+"""Seed the ``cluster_env`` table from a CSV file.
 
-Reads ``clusters.csv`` (default: ``input/clusters.csv``) and matches rows by
-``cluster_server`` to set the ``env`` label on existing clusters.
+Reads ``clusters_env.csv`` (default: ``input/clusters_env.csv``) and matches
+rows by ``cluster_server`` to create entries in the ``cluster_env`` table.
 
 Usage::
 
-    python seed_clusters.py                       # reads input/clusters.csv
-    python seed_clusters.py /path/to/clusters.csv # custom path
+    python seed_clusters.py                            # reads input/clusters_env.csv
+    python seed_clusters.py /path/to/clusters_env.csv  # custom path
 """
 
 from __future__ import annotations
@@ -16,20 +16,20 @@ import sys
 from pathlib import Path
 
 from schema.database import Base, SessionLocal, engine
-from schema.models import Cluster
+from schema.models import Cluster, ClusterEnv
 
-DEFAULT_CSV = Path("input") / "clusters.csv"
+DEFAULT_CSV = Path("input") / "clusters_env.csv"
 
 
 def seed_clusters(csv_path: Path) -> int:
-    """Match clusters by server URL and set env. Return update count."""
+    """Match clusters by server URL and upsert cluster_env rows. Return count."""
     if not csv_path.exists():
         print(f"ERROR: file not found: {csv_path}", file=sys.stderr)
         sys.exit(1)
 
     Base.metadata.create_all(engine)
 
-    updated = 0
+    upserted = 0
     skipped = 0
 
     with SessionLocal() as session:
@@ -60,21 +60,30 @@ def seed_clusters(csv_path: Path) -> int:
                     skipped += 1
                 else:
                     for cluster in clusters:
-                        cluster.env = env
-                        updated += 1
-                        print(f"  Updated: {cluster.cluster_name} -> env={env}")
+                        existing = (
+                            session.query(ClusterEnv)
+                            .filter_by(cluster_id=cluster.id)
+                            .first()
+                        )
+                        if existing:
+                            existing.env = env
+                            print(f"  Updated: {cluster.cluster_name} -> env={env}")
+                        else:
+                            session.add(ClusterEnv(cluster_id=cluster.id, env=env))
+                            print(f"  Added:   {cluster.cluster_name} -> env={env}")
+                        upserted += 1
 
         session.commit()
 
-    return updated
+    return upserted
 
 
 def main() -> None:
     csv_path = Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_CSV
-    print(f"Seeding clusters from: {csv_path}")
+    print(f"Seeding cluster_env from: {csv_path}")
 
     count = seed_clusters(csv_path)
-    print(f"Done — {count} cluster(s) updated.")
+    print(f"Done — {count} cluster(s) upserted.")
 
 
 if __name__ == "__main__":

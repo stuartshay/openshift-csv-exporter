@@ -4,6 +4,7 @@ Tables
 ------
 Shared:
     clusters                          – deduplicated cluster identity
+    cluster_env                       – environment label per cluster
 
 Cluster Overview:
     cluster_overview                  – one row per cluster snapshot
@@ -44,13 +45,13 @@ class Cluster(Base):
     cluster_name: Mapped[str] = mapped_column(String, nullable=False)
     cluster_context: Mapped[str] = mapped_column(String, nullable=False)
     cluster_server: Mapped[str] = mapped_column(String, nullable=False)
-    env: Mapped[str | None] = mapped_column(String, nullable=True)
 
     __table_args__ = (
         UniqueConstraint("cluster_name", "cluster_context", "cluster_server"),
     )
 
     # relationships
+    cluster_env = relationship("ClusterEnv", back_populates="cluster", uselist=False)
     cluster_overviews = relationship("ClusterOverview", back_populates="cluster")
     oauth_external_auths = relationship("OAuthExternalAuth", back_populates="cluster")
     clusterroles = relationship("ClusterRole", back_populates="cluster")
@@ -58,6 +59,21 @@ class Cluster(Base):
     self_provisioner_bindings = relationship(
         "SelfProvisionerBinding", back_populates="cluster"
     )
+
+
+class ClusterEnv(Base):
+    __tablename__ = "cluster_env"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    cluster_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("clusters.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    env: Mapped[str] = mapped_column(String, nullable=False)
+
+    cluster = relationship("Cluster", back_populates="cluster_env")
 
 
 # ── Cluster Overview ──────────────────────────────────────────────────────────

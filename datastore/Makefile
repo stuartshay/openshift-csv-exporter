@@ -20,7 +20,7 @@ venv: $(VENV_DIR)/bin/activate ## Create virtualenv and install dependencies
 schema: venv ## Generate the SQLite database schema
 	$(VENV_DIR)/bin/python generate_schema.py
 
-seed: schema ## Seed clusters table from input/clusters.csv
+seed: schema ## Seed clusters table from input/clusters_env.csv
 	$(VENV_DIR)/bin/python seed_clusters.py
 
 load: schema ## Load CSV data from data/ into the database
