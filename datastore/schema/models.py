@@ -44,6 +44,7 @@ class Cluster(Base):
     cluster_name: Mapped[str] = mapped_column(String, nullable=False)
     cluster_context: Mapped[str] = mapped_column(String, nullable=False)
     cluster_server: Mapped[str] = mapped_column(String, nullable=False)
+    env: Mapped[str | None] = mapped_column(String, nullable=True)
 
     __table_args__ = (
         UniqueConstraint("cluster_name", "cluster_context", "cluster_server"),

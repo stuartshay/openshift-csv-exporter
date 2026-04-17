@@ -7,6 +7,7 @@ datastore/ocp_audit.db
 datastore/ocp_audit.db-shm
 datastore/ocp_audit.db-wal
 !datastore/data/*.csv
+!datastore/input/*.csv
 __pycache__/
 *.pyc
 

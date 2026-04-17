@@ -1,4 +1,4 @@
-.PHONY: help venv schema load clean
+.PHONY: help venv schema seed load clean
 
 # Prefer python3.14, fall back to python3
 PYTHON ?= $(shell command -v python3.14 2>/dev/null || echo python3)
@@ -19,6 +19,9 @@ venv: $(VENV_DIR)/bin/activate ## Create virtualenv and install dependencies
 
 schema: venv ## Generate the SQLite database schema
 	$(VENV_DIR)/bin/python generate_schema.py
+
+seed: schema ## Seed clusters table from input/clusters.csv
+	$(VENV_DIR)/bin/python seed_clusters.py
 
 load: schema ## Load CSV data from data/ into the database
 	$(VENV_DIR)/bin/python load_csv.py
