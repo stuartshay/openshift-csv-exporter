@@ -1,4 +1,4 @@
-.PHONY: help venv schema seed load clean
+.PHONY: help venv schema seed load reset-db clean
 
 # Prefer python3.14, fall back to python3
 PYTHON ?= $(shell command -v python3.14 2>/dev/null || echo python3)
@@ -25,6 +25,10 @@ seed: schema ## Seed clusters table from input/clusters_env.csv
 
 load: schema ## Load CSV data from data/ into the database
 	$(VENV_DIR)/bin/python load_csv.py
+
+reset-db: ## Delete the SQLite database
+	rm -f $(DB_FILE)
+	@echo "Removed $(DB_FILE)"
 
 clean: ## Remove database and virtualenv
 	rm -f $(DB_FILE)

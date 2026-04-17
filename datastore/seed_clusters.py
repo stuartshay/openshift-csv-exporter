@@ -1,7 +1,9 @@
 """Seed the ``cluster_env`` table from a CSV file.
 
 Reads ``clusters_env.csv`` (default: ``input/clusters_env.csv``) and matches
-rows by ``cluster_server`` to create entries in the ``cluster_env`` table.
+rows by ``cluster_server`` against the ``cluster_server`` column in the
+``clusters`` table to find the corresponding cluster, then creates or updates
+entries in the ``cluster_env`` table.
 
 Usage::
 
@@ -22,7 +24,7 @@ DEFAULT_CSV = Path("input") / "clusters_env.csv"
 
 
 def seed_clusters(csv_path: Path) -> int:
-    """Match clusters by server URL and upsert cluster_env rows. Return count."""
+    """Match via clusters.cluster_server and upsert cluster_env rows."""
     if not csv_path.exists():
         print(f"ERROR: file not found: {csv_path}", file=sys.stderr)
         sys.exit(1)
@@ -53,25 +55,27 @@ def seed_clusters(csv_path: Path) -> int:
                     skipped += 1
                     continue
 
+                # Match via clusters.cluster_server
                 clusters = session.query(Cluster).filter_by(cluster_server=server).all()
 
                 if not clusters:
-                    print(f"  No match: {server}")
+                    print(f"  No match in clusters: {server}")
                     skipped += 1
-                else:
-                    for cluster in clusters:
-                        existing = (
-                            session.query(ClusterEnv)
-                            .filter_by(cluster_id=cluster.id)
-                            .first()
-                        )
-                        if existing:
-                            existing.env = env
-                            print(f"  Updated: {cluster.cluster_name} -> env={env}")
-                        else:
-                            session.add(ClusterEnv(cluster_id=cluster.id, env=env))
-                            print(f"  Added:   {cluster.cluster_name} -> env={env}")
-                        upserted += 1
+                    continue
+
+                for cluster in clusters:
+                    existing = (
+                        session.query(ClusterEnv)
+                        .filter_by(cluster_id=cluster.id)
+                        .first()
+                    )
+                    if existing:
+                        existing.env = env
+                        print(f"  Updated: {cluster.cluster_name} -> env={env}")
+                    else:
+                        session.add(ClusterEnv(cluster_id=cluster.id, env=env))
+                        print(f"  Added:   {cluster.cluster_name} -> env={env}")
+                    upserted += 1
 
         session.commit()
 
