@@ -72,6 +72,7 @@ class ClusterEnv(Base):
         unique=True,
     )
     env: Mapped[str] = mapped_column(String, nullable=False)
+    friendly_name: Mapped[str | None] = mapped_column(String, nullable=True)
 
     cluster = relationship("Cluster", back_populates="cluster_env")
 
