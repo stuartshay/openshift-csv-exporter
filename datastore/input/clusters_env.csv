@@ -1,1 +1,4 @@
 cluster_server,env,friendly_name
+https://api.ocp-prod-east.example.com:6443,prod,Prod East
+https://api.ocp-staging.example.com:6443,stage,Staging
+https://api.ocp-dev.example.com:6443,dev,Dev

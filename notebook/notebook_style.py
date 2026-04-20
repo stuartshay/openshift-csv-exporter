@@ -22,6 +22,9 @@ from pathlib import Path
 
 import pandas as pd
 
+# Populated by ``bootstrap()`` — maps cluster_name -> (env, friendly_name).
+_CLUSTER_ENV_MAP: dict[str, tuple[str | None, str | None]] = {}
+
 # --- Theme constants (shared across all notebooks) -------------------------
 HEADER_BG = "#E07B39"   # warm orange from reference screenshot
 HEADER_FG = "#FFFFFF"
@@ -60,8 +63,32 @@ _TABLE_STYLES = [
 ]
 
 
+def _prepend_env_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """If ``df`` has a ``cluster_name`` column, insert ``env`` and
+    ``friendly_name`` as the first two columns using the map populated by
+    :func:`bootstrap`. Returns a new DataFrame; original is untouched.
+    """
+    if "cluster_name" not in df.columns or not _CLUSTER_ENV_MAP:
+        return df
+    env_vals = df["cluster_name"].map(lambda n: _CLUSTER_ENV_MAP.get(n, (None, None))[0])
+    friendly_vals = df["cluster_name"].map(
+        lambda n: _CLUSTER_ENV_MAP.get(n, (None, None))[1]
+    )
+    out = df.copy()
+    # Drop any pre-existing env / friendly_name columns to avoid duplicates.
+    for col in ("env", "friendly_name"):
+        if col in out.columns:
+            out = out.drop(columns=[col])
+    out.insert(0, "friendly_name", friendly_vals)
+    out.insert(0, "env", env_vals)
+    return out
+
+
 def style_table(df: pd.DataFrame, caption: str | None = None):
     """Return a pandas Styler with the shared orange-header theme.
+
+    If the DataFrame contains a ``cluster_name`` column, ``env`` and
+    ``friendly_name`` are automatically prepended as the first two columns.
 
     Parameters
     ----------
@@ -70,6 +97,7 @@ def style_table(df: pd.DataFrame, caption: str | None = None):
     caption : str, optional
         Optional caption rendered above the table.
     """
+    df = _prepend_env_columns(df)
     styler = df.style.hide(axis="index").set_table_styles(_TABLE_STYLES)
     if caption:
         styler = styler.set_caption(caption).set_table_styles(
@@ -99,6 +127,19 @@ def bootstrap(db_relpath: str = "../datastore/ocp_audit.db"):
 
     # Imported here so OCP_AUDIT_DB is set before the engine is created.
     from schema.database import SessionLocal, engine  # noqa: WPS433
+    from schema.models import Cluster, ClusterEnv  # noqa: WPS433
+
+    session = SessionLocal()
+
+    # Build cluster_name -> (env, friendly_name) map for auto-prepend.
+    _CLUSTER_ENV_MAP.clear()
+    rows = (
+        session.query(Cluster.cluster_name, ClusterEnv.env, ClusterEnv.friendly_name)
+        .outerjoin(ClusterEnv, ClusterEnv.cluster_id == Cluster.id)
+        .all()
+    )
+    for name, env, friendly in rows:
+        _CLUSTER_ENV_MAP[name] = (env, friendly)
 
     pd.set_option("display.max_colwidth", 80)
-    return SessionLocal(), engine
+    return session, engine
