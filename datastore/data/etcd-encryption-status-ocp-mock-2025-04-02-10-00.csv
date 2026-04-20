@@ -6,3 +6,17 @@ ocp-staging,admin/api-ocp-staging:6443,https://api.ocp-staging.example.com:6443,
 ocp-staging,admin/api-ocp-staging:6443,https://api.ocp-staging.example.com:6443,operator,kube-apiserver,,,True,False,False,Encrypted,EncryptionCompleted,All resources encrypted with aescbc
 ocp-dev,admin/api-ocp-dev:6443,https://api.ocp-dev.example.com:6443,apiserver,cluster,identity,false,,,,,,
 ocp-dev,admin/api-ocp-dev:6443,https://api.ocp-dev.example.com:6443,operator,kube-apiserver,,,True,False,False,EncryptionDisabled,EncryptionDisabled,Encryption not configured
+ocp-prod-west,admin/api-ocp-prod-west:6443,https://api.ocp-prod-west.example.com:6443,apiserver,cluster,aescbc,true,,,,,,
+ocp-prod-central,admin/api-ocp-prod-central:6443,https://api.ocp-prod-central.example.com:6443,apiserver,cluster,aescbc,true,,,,,,
+ocp-prod-west,admin/api-ocp-prod-west:6443,https://api.ocp-prod-west.example.com:6443,operator,kube-apiserver,,,True,False,False,Encrypted,EncryptionCompleted,All resources encrypted with aescbc
+ocp-prod-central,admin/api-ocp-prod-central:6443,https://api.ocp-prod-central.example.com:6443,operator,kube-apiserver,,,True,False,False,Encrypted,EncryptionCompleted,All resources encrypted with aescbc
+ocp-prod-west,admin/api-ocp-prod-west:6443,https://api.ocp-prod-west.example.com:6443,operator,openshift-apiserver,,,True,False,False,Encrypted,EncryptionCompleted,All resources encrypted with aescbc
+ocp-prod-central,admin/api-ocp-prod-central:6443,https://api.ocp-prod-central.example.com:6443,operator,openshift-apiserver,,,True,False,False,Encrypted,EncryptionCompleted,All resources encrypted with aescbc
+ocp-stage-west,admin/api-ocp-stage-west:6443,https://api.ocp-stage-west.example.com:6443,apiserver,cluster,aescbc,true,,,,,,
+ocp-stage-eu,admin/api-ocp-stage-eu:6443,https://api.ocp-stage-eu.example.com:6443,apiserver,cluster,aescbc,true,,,,,,
+ocp-stage-west,admin/api-ocp-stage-west:6443,https://api.ocp-stage-west.example.com:6443,operator,kube-apiserver,,,True,False,False,Encrypted,EncryptionCompleted,All resources encrypted with aescbc
+ocp-stage-eu,admin/api-ocp-stage-eu:6443,https://api.ocp-stage-eu.example.com:6443,operator,kube-apiserver,,,True,False,False,Encrypted,EncryptionCompleted,All resources encrypted with aescbc
+ocp-dev-west,admin/api-ocp-dev-west:6443,https://api.ocp-dev-west.example.com:6443,apiserver,cluster,identity,false,,,,,,
+ocp-sandbox,admin/api-ocp-sandbox:6443,https://api.ocp-sandbox.example.com:6443,apiserver,cluster,identity,false,,,,,,
+ocp-dev-west,admin/api-ocp-dev-west:6443,https://api.ocp-dev-west.example.com:6443,operator,kube-apiserver,,,True,False,False,EncryptionDisabled,EncryptionDisabled,Encryption not configured
+ocp-sandbox,admin/api-ocp-sandbox:6443,https://api.ocp-sandbox.example.com:6443,operator,kube-apiserver,,,True,False,False,EncryptionDisabled,EncryptionDisabled,Encryption not configured
