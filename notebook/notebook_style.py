@@ -84,20 +84,8 @@ def _prepend_env_columns(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def style_table(df: pd.DataFrame, caption: str | None = None):
-    """Return a pandas Styler with the shared orange-header theme.
-
-    If the DataFrame contains a ``cluster_name`` column, ``env`` and
-    ``friendly_name`` are automatically prepended as the first two columns.
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        The DataFrame to render.
-    caption : str, optional
-        Optional caption rendered above the table.
-    """
-    df = _prepend_env_columns(df)
+def _build_styler(df: pd.DataFrame, caption: str | None = None):
+    """Apply the shared orange-header theme to an already-prepared DataFrame."""
     styler = df.style.hide(axis="index").set_table_styles(_TABLE_STYLES)
     if caption:
         styler = styler.set_caption(caption).set_table_styles(
@@ -110,6 +98,59 @@ def style_table(df: pd.DataFrame, caption: str | None = None):
             overwrite=False,
         )
     return styler
+
+
+def style_table(df: pd.DataFrame, caption: str | None = None):
+    """Render a DataFrame as an env-filterable table.
+
+    If the DataFrame contains a ``cluster_name`` column, ``env`` and
+    ``friendly_name`` are automatically prepended as the first two columns,
+    and an "Env" dropdown is shown above the grid (default: ``All``). Rows
+    without a matching env are preserved when ``All`` is selected.
+
+    Returns an ipywidgets ``VBox`` when filtering is possible, otherwise a
+    plain pandas ``Styler``.
+    """
+    df = _prepend_env_columns(df)
+
+    # If there is no env column to filter on, fall back to a plain styler.
+    if "env" not in df.columns:
+        return _build_styler(df, caption)
+
+    try:
+        import ipywidgets as widgets  # noqa: WPS433
+        from IPython.display import display, clear_output  # noqa: WPS433
+    except ModuleNotFoundError:
+        # ipywidgets not available in current kernel — render unfiltered table.
+        return _build_styler(df, caption)
+
+    env_values = sorted(
+        v for v in df["env"].dropna().unique().tolist() if str(v) != ""
+    )
+    options = ["All"] + env_values
+
+    dropdown = widgets.Dropdown(
+        options=options,
+        value="All",
+        description="Env:",
+        layout=widgets.Layout(width="260px"),
+        style={"description_width": "40px"},
+    )
+    out = widgets.Output()
+
+    def _render(selected: str) -> None:
+        filtered = df if selected == "All" else df[df["env"] == selected]
+        with out:
+            clear_output(wait=True)
+            display(_build_styler(filtered, caption))
+
+    def _on_change(change: dict) -> None:
+        if change.get("name") == "value" and change.get("type") == "change":
+            _render(change["new"])
+
+    dropdown.observe(_on_change, names="value")
+    _render("All")
+    return widgets.VBox([dropdown, out])
 
 
 def bootstrap(db_relpath: str = "../datastore/ocp_audit.db"):

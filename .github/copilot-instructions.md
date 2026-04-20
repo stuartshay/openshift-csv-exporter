@@ -141,3 +141,18 @@ done
 - Quote all variable expansions
 - Use `$(command)` not backticks
 - Scripts must be executable (`chmod +x`)
+
+## Python Dependency Management
+
+This repo has **three** Python `requirements.txt` files, one per component. Whenever you import a new third-party module in Python code, you MUST add it to the corresponding `requirements.txt` in the same commit.
+
+- `requirements.txt` (root) — top-level tooling
+- `datastore/requirements.txt` — `datastore/` package (schema, loaders, seed scripts)
+- `notebook/requirements.txt` — Jupyter notebooks and `notebook_style.py`
+
+Rules:
+
+- Add the package name (unpinned, or `>=` floor when a minimum version is required) — match the style of existing entries in that file.
+- Never rely on a transitive/implicit dependency; declare every direct import explicitly.
+- If an import is used in more than one component, add it to each component's `requirements.txt`.
+- When removing the last import of a package, also remove it from `requirements.txt`.
