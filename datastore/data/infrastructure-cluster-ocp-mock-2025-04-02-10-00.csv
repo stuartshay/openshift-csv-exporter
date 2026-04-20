@@ -1,0 +1,4 @@
+cluster_name,cluster_context,cluster_server,name,infrastructure_name,platform,api_server_url,api_server_internal_url,control_plane_topology,infrastructure_topology
+ocp-prod-east,admin/api-ocp-prod-east:6443,https://api.ocp-prod-east.example.com:6443,cluster,ocp-prod-east-xyz12,AWS,https://api.ocp-prod-east.example.com:6443,https://api-int.ocp-prod-east.example.com:6443,HighlyAvailable,HighlyAvailable
+ocp-staging,admin/api-ocp-staging:6443,https://api.ocp-staging.example.com:6443,cluster,ocp-staging-abc34,AWS,https://api.ocp-staging.example.com:6443,https://api-int.ocp-staging.example.com:6443,HighlyAvailable,HighlyAvailable
+ocp-dev,admin/api-ocp-dev:6443,https://api.ocp-dev.example.com:6443,cluster,ocp-dev-def56,AWS,https://api.ocp-dev.example.com:6443,https://api-int.ocp-dev.example.com:6443,SingleReplica,SingleReplica

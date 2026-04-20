@@ -1,0 +1,4 @@
+cluster_name,cluster_context,cluster_server,ocp_version,cluster_id,update_channel,update_state,platform,control_plane_topology,infrastructure_topology,total_operators,degraded_count,unavailable_count,degraded_operators,unavailable_operators
+ocp-prod-east,admin/api-ocp-prod-east:6443,https://api.ocp-prod-east.example.com:6443,4.18.28,8a7b6c5d-1111-2222-3333-444455556666,stable-4.18,Completed,AWS,HighlyAvailable,HighlyAvailable,33,0,0,,
+ocp-staging,admin/api-ocp-staging:6443,https://api.ocp-staging.example.com:6443,4.18.24,9b8c7d6e-aaaa-bbbb-cccc-ddddeeeeffff,stable-4.18,Completed,AWS,HighlyAvailable,HighlyAvailable,33,0,0,,
+ocp-dev,admin/api-ocp-dev:6443,https://api.ocp-dev.example.com:6443,4.18.18,1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d,fast-4.18,Completed,AWS,SingleReplica,SingleReplica,33,1,0,ingress,

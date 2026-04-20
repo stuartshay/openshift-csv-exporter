@@ -1,0 +1,8 @@
+cluster_name,cluster_context,cluster_server,record_type,resource_name,encryption_type,encryption_enabled,condition_available,condition_degraded,condition_progressing,condition_type,condition_reason,message
+ocp-prod-east,admin/api-ocp-prod-east:6443,https://api.ocp-prod-east.example.com:6443,apiserver,cluster,aescbc,true,,,,,,
+ocp-prod-east,admin/api-ocp-prod-east:6443,https://api.ocp-prod-east.example.com:6443,operator,kube-apiserver,,,True,False,False,Encrypted,EncryptionCompleted,All resources encrypted with aescbc
+ocp-prod-east,admin/api-ocp-prod-east:6443,https://api.ocp-prod-east.example.com:6443,operator,openshift-apiserver,,,True,False,False,Encrypted,EncryptionCompleted,All resources encrypted with aescbc
+ocp-staging,admin/api-ocp-staging:6443,https://api.ocp-staging.example.com:6443,apiserver,cluster,aescbc,true,,,,,,
+ocp-staging,admin/api-ocp-staging:6443,https://api.ocp-staging.example.com:6443,operator,kube-apiserver,,,True,False,False,Encrypted,EncryptionCompleted,All resources encrypted with aescbc
+ocp-dev,admin/api-ocp-dev:6443,https://api.ocp-dev.example.com:6443,apiserver,cluster,identity,false,,,,,,
+ocp-dev,admin/api-ocp-dev:6443,https://api.ocp-dev.example.com:6443,operator,kube-apiserver,,,True,False,False,EncryptionDisabled,EncryptionDisabled,Encryption not configured

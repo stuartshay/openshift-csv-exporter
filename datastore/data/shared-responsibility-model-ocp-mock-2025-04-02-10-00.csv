@@ -1,0 +1,11 @@
+cluster_name,cluster_context,cluster_server,record_type,namespace,name,detail_1,detail_2,detail_3,detail_4
+ocp-prod-east,admin/api-ocp-prod-east:6443,https://api.ocp-prod-east.example.com:6443,platform,,infrastructure,platform=AWS,topology=HighlyAvailable,managed-by=customer,
+ocp-prod-east,admin/api-ocp-prod-east:6443,https://api.ocp-prod-east.example.com:6443,customer_namespace_count,,user-namespaces,count=42,excludes-openshift-and-kube=true,,
+ocp-prod-east,admin/api-ocp-prod-east:6443,https://api.ocp-prod-east.example.com:6443,platform_namespace_count,,platform-namespaces,count=60,prefix=openshift-;kube-,,
+ocp-prod-east,admin/api-ocp-prod-east:6443,https://api.ocp-prod-east.example.com:6443,operator,openshift-operators,cert-manager-operator,installed-by=customer,scope=cluster,,
+ocp-staging,admin/api-ocp-staging:6443,https://api.ocp-staging.example.com:6443,platform,,infrastructure,platform=AWS,topology=HighlyAvailable,managed-by=customer,
+ocp-staging,admin/api-ocp-staging:6443,https://api.ocp-staging.example.com:6443,customer_namespace_count,,user-namespaces,count=15,excludes-openshift-and-kube=true,,
+ocp-staging,admin/api-ocp-staging:6443,https://api.ocp-staging.example.com:6443,platform_namespace_count,,platform-namespaces,count=58,prefix=openshift-;kube-,,
+ocp-dev,admin/api-ocp-dev:6443,https://api.ocp-dev.example.com:6443,platform,,infrastructure,platform=AWS,topology=SingleReplica,managed-by=customer,
+ocp-dev,admin/api-ocp-dev:6443,https://api.ocp-dev.example.com:6443,customer_namespace_count,,user-namespaces,count=8,excludes-openshift-and-kube=true,,
+ocp-dev,admin/api-ocp-dev:6443,https://api.ocp-dev.example.com:6443,platform_namespace_count,,platform-namespaces,count=55,prefix=openshift-;kube-,,

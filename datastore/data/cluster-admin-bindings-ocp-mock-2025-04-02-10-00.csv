@@ -1,0 +1,9 @@
+cluster_name,cluster_context,cluster_server,binding_name,role_ref_name,subject_kind,subject_name,subject_namespace,creation_timestamp
+ocp-prod-east,admin/api-ocp-prod-east:6443,https://api.ocp-prod-east.example.com:6443,cluster-admin,cluster-admin,Group,system:masters,,2024-01-15T08:30:00Z
+ocp-prod-east,admin/api-ocp-prod-east:6443,https://api.ocp-prod-east.example.com:6443,platform-admins-binding,cluster-admin,Group,platform-admins,,2024-01-20T10:00:00Z
+ocp-prod-east,admin/api-ocp-prod-east:6443,https://api.ocp-prod-east.example.com:6443,platform-admins-binding,cluster-admin,User,jsmith@example.com,,2024-01-20T10:00:00Z
+ocp-staging,admin/api-ocp-staging:6443,https://api.ocp-staging.example.com:6443,cluster-admin,cluster-admin,Group,system:masters,,2024-03-02T12:10:00Z
+ocp-staging,admin/api-ocp-staging:6443,https://api.ocp-staging.example.com:6443,staging-admins,cluster-admin,Group,staging-admins,,2024-03-05T09:00:00Z
+ocp-dev,admin/api-ocp-dev:6443,https://api.ocp-dev.example.com:6443,cluster-admin,cluster-admin,Group,system:masters,,2024-06-20T09:45:00Z
+ocp-dev,admin/api-ocp-dev:6443,https://api.ocp-dev.example.com:6443,dev-admins,cluster-admin,Group,dev-team,,2024-06-22T14:30:00Z
+ocp-dev,admin/api-ocp-dev:6443,https://api.ocp-dev.example.com:6443,dev-admins,cluster-admin,User,developer@example.com,,2024-06-22T14:30:00Z

@@ -1,0 +1,12 @@
+cluster_name,cluster_context,cluster_server,record_type,component_name,status,namespace,detail_1,detail_2,detail_3,detail_4
+ocp-prod-east,admin/api-ocp-prod-east:6443,https://api.ocp-prod-east.example.com:6443,machineconfigpool,master,Updated,,3/3,degraded=0,unavailable=0,
+ocp-prod-east,admin/api-ocp-prod-east:6443,https://api.ocp-prod-east.example.com:6443,machineconfigpool,worker,Updated,,6/6,degraded=0,unavailable=0,
+ocp-prod-east,admin/api-ocp-prod-east:6443,https://api.ocp-prod-east.example.com:6443,clusteroperator,authentication,Available,,degraded=false,progressing=false,,
+ocp-prod-east,admin/api-ocp-prod-east:6443,https://api.ocp-prod-east.example.com:6443,argocd,openshift-gitops,Synced,openshift-gitops,apps-in-sync=12,apps-out-of-sync=0,,
+ocp-staging,admin/api-ocp-staging:6443,https://api.ocp-staging.example.com:6443,machineconfigpool,master,Updated,,3/3,degraded=0,unavailable=0,
+ocp-staging,admin/api-ocp-staging:6443,https://api.ocp-staging.example.com:6443,machineconfigpool,worker,Updated,,4/4,degraded=0,unavailable=0,
+ocp-staging,admin/api-ocp-staging:6443,https://api.ocp-staging.example.com:6443,argocd,openshift-gitops,Synced,openshift-gitops,apps-in-sync=6,apps-out-of-sync=1,,
+ocp-dev,admin/api-ocp-dev:6443,https://api.ocp-dev.example.com:6443,machineconfigpool,master,Updating,,0/1,degraded=0,unavailable=1,
+ocp-dev,admin/api-ocp-dev:6443,https://api.ocp-dev.example.com:6443,machineconfigpool,worker,Updated,,2/2,degraded=0,unavailable=0,
+ocp-dev,admin/api-ocp-dev:6443,https://api.ocp-dev.example.com:6443,clusteroperator,ingress,Degraded,,degraded=true,progressing=false,,
+ocp-dev,admin/api-ocp-dev:6443,https://api.ocp-dev.example.com:6443,argocd,not-installed,,,,,,

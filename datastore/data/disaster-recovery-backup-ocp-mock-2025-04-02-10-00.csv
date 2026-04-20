@@ -1,0 +1,10 @@
+cluster_name,cluster_context,cluster_server,record_type,resource_name,namespace,condition_available,condition_degraded,condition_progressing,detail,message,last_transition,age_days
+ocp-prod-east,admin/api-ocp-prod-east:6443,https://api.ocp-prod-east.example.com:6443,operator,oadp-operator,openshift-adp,True,False,False,version=1.4.0,OADP installed and healthy,2024-09-01T00:00:00Z,213
+ocp-prod-east,admin/api-ocp-prod-east:6443,https://api.ocp-prod-east.example.com:6443,backup_location,default,openshift-adp,True,False,False,provider=aws;bucket=ocp-prod-backups,Available,2024-09-01T00:00:00Z,213
+ocp-prod-east,admin/api-ocp-prod-east:6443,https://api.ocp-prod-east.example.com:6443,backup,daily-full-20250401,openshift-adp,True,False,False,phase=Completed;items-backed-up=4231,Backup completed successfully,2025-04-01T02:00:00Z,1
+ocp-prod-east,admin/api-ocp-prod-east:6443,https://api.ocp-prod-east.example.com:6443,etcd_backup,etcd-backup-daily,openshift-etcd,True,False,False,cron=0 2 * * *,Most recent backup 2025-04-02T02:00:00Z,2025-04-02T02:00:00Z,0
+ocp-staging,admin/api-ocp-staging:6443,https://api.ocp-staging.example.com:6443,operator,oadp-operator,openshift-adp,True,False,False,version=1.4.0,OADP installed and healthy,2024-09-15T00:00:00Z,199
+ocp-staging,admin/api-ocp-staging:6443,https://api.ocp-staging.example.com:6443,backup_location,default,openshift-adp,True,False,False,provider=aws;bucket=ocp-staging-backups,Available,2024-09-15T00:00:00Z,199
+ocp-staging,admin/api-ocp-staging:6443,https://api.ocp-staging.example.com:6443,backup,weekly-full-20250330,openshift-adp,True,False,False,phase=Completed;items-backed-up=2108,Backup completed successfully,2025-03-30T02:00:00Z,3
+ocp-dev,admin/api-ocp-dev:6443,https://api.ocp-dev.example.com:6443,operator,oadp-operator,,False,False,False,not-installed,OADP operator not installed,,
+ocp-dev,admin/api-ocp-dev:6443,https://api.ocp-dev.example.com:6443,etcd_backup,,,False,False,False,cron=not-configured,No etcd backup schedule found,,

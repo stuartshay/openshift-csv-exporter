@@ -1,0 +1,11 @@
+cluster_name,cluster_context,cluster_server,record_type,product_name,installed,namespace,operator_version,detail_1,detail_2,detail_3
+ocp-prod-east,admin/api-ocp-prod-east:6443,https://api.ocp-prod-east.example.com:6443,operator,advanced-cluster-management,true,open-cluster-management,2.11.0,channel=release-2.11,source=redhat-operators,
+ocp-prod-east,admin/api-ocp-prod-east:6443,https://api.ocp-prod-east.example.com:6443,operator,rhacs-operator,true,rhacs-operator,4.5.2,channel=stable,source=redhat-operators,
+ocp-prod-east,admin/api-ocp-prod-east:6443,https://api.ocp-prod-east.example.com:6443,operator,compliance-operator,true,openshift-compliance,1.6.0,channel=stable,source=redhat-operators,
+ocp-prod-east,admin/api-ocp-prod-east:6443,https://api.ocp-prod-east.example.com:6443,policy,cis-ocp-v4-node,Compliant,open-cluster-management,,remediation=inform,,
+ocp-staging,admin/api-ocp-staging:6443,https://api.ocp-staging.example.com:6443,operator,advanced-cluster-management,false,,,,,
+ocp-staging,admin/api-ocp-staging:6443,https://api.ocp-staging.example.com:6443,operator,rhacs-operator,true,rhacs-operator,4.5.2,channel=stable,source=redhat-operators,
+ocp-staging,admin/api-ocp-staging:6443,https://api.ocp-staging.example.com:6443,operator,compliance-operator,true,openshift-compliance,1.6.0,channel=stable,source=redhat-operators,
+ocp-dev,admin/api-ocp-dev:6443,https://api.ocp-dev.example.com:6443,operator,advanced-cluster-management,false,,,,,
+ocp-dev,admin/api-ocp-dev:6443,https://api.ocp-dev.example.com:6443,operator,rhacs-operator,false,,,,,
+ocp-dev,admin/api-ocp-dev:6443,https://api.ocp-dev.example.com:6443,operator,compliance-operator,false,,,,,
