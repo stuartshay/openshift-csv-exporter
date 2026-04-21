@@ -30,6 +30,34 @@ _CLUSTER_ENV_MAP: dict[str, tuple[str | None, str | None]] = {}
 # Populated by ``bootstrap()`` — absolute path to the repo ``output/`` dir.
 _OUTPUT_DIR: Path | None = None
 
+# Tracks the most recent SQLAlchemy session returned by ``bootstrap()`` so it
+# can be closed cleanly when the same kernel is reused across notebooks.
+_LAST_SESSION = None
+
+
+def reset() -> None:
+    """Close all open ipywidgets and the previous SQLAlchemy session.
+
+    Useful when sharing a single Jupyter kernel across multiple notebooks —
+    call :func:`reset` (or simply re-run the bootstrap cell, which calls it
+    automatically) to guarantee a clean widget registry and drop any stale
+    session state. Safe to call when nothing has been initialised yet.
+    """
+    global _LAST_SESSION
+    if _LAST_SESSION is not None:
+        try:
+            _LAST_SESSION.close()
+        except Exception:
+            pass
+        _LAST_SESSION = None
+    _CLUSTER_ENV_MAP.clear()
+    try:
+        import ipywidgets as widgets  # noqa: WPS433
+
+        widgets.Widget.close_all()
+    except Exception:
+        pass
+
 # --- Theme constants (shared across all notebooks) -------------------------
 HEADER_BG = "#E07B39"   # warm orange from reference screenshot
 HEADER_FG = "#FFFFFF"
@@ -332,8 +360,15 @@ def style_table(df: pd.DataFrame, caption: str | None = None):
 def bootstrap(db_relpath: str = "../datastore/ocp_audit.db"):
     """Configure sys.path and OCP_AUDIT_DB, then return (session, engine).
 
-    Must be called before any `schema.*` import. Idempotent.
+    Must be called before any `schema.*` import. Idempotent, and safe to
+    re-run in a kernel that is shared across notebooks: any previously
+    returned session is closed and all open ipywidgets are released before
+    a fresh session is created.
     """
+    # Drop any prior session + widgets from an earlier notebook using this
+    # same kernel so we don't leak state or duplicate grid displays.
+    reset()
+
     notebook_dir = Path(os.path.abspath("__file__")).parent
     db_path = (notebook_dir / db_relpath).resolve()
     os.environ["OCP_AUDIT_DB"] = str(db_path)
@@ -343,7 +378,7 @@ def bootstrap(db_relpath: str = "../datastore/ocp_audit.db"):
         sys.path.insert(0, str(datastore_dir))
 
     # Resolve and remember the repo-level ``output/`` directory for CSV exports.
-    global _OUTPUT_DIR
+    global _OUTPUT_DIR, _LAST_SESSION
     _OUTPUT_DIR = (notebook_dir / ".." / "output").resolve()
     _OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -352,6 +387,7 @@ def bootstrap(db_relpath: str = "../datastore/ocp_audit.db"):
     from schema.models import Cluster, ClusterEnv  # noqa: WPS433
 
     session = SessionLocal()
+    _LAST_SESSION = session
 
     # Build cluster_name -> (env, friendly_name) map for auto-prepend.
     _CLUSTER_ENV_MAP.clear()
