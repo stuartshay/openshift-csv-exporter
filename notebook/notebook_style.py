@@ -17,13 +17,18 @@ All notebooks in this directory share the same visual language:
 from __future__ import annotations
 
 import os
+import re
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
 
 # Populated by ``bootstrap()`` — maps cluster_name -> (env, friendly_name).
 _CLUSTER_ENV_MAP: dict[str, tuple[str | None, str | None]] = {}
+
+# Populated by ``bootstrap()`` — absolute path to the repo ``output/`` dir.
+_OUTPUT_DIR: Path | None = None
 
 # --- Theme constants (shared across all notebooks) -------------------------
 HEADER_BG = "#E07B39"   # warm orange from reference screenshot
@@ -179,6 +184,14 @@ def style_table(df: pd.DataFrame, caption: str | None = None):
     )
     page_label = widgets.Label(value="")
 
+    export_btn = widgets.Button(
+        description="Export CSV",
+        icon="download",
+        tooltip="Export the currently filtered rows to output/<name>-YYYY-MM-DD-HH-MM.csv",
+        layout=widgets.Layout(width="140px"),
+    )
+    export_status = widgets.Label(value="")
+
     out = widgets.Output()
 
     # Current page index (0-based). Mutable via list to avoid `nonlocal`.
@@ -274,6 +287,19 @@ def style_table(df: pd.DataFrame, caption: str | None = None):
         state["page"] += 1
         _render()
 
+    def _on_export(_btn) -> None:
+        filtered = _filtered_df()
+        out_dir = _OUTPUT_DIR or (Path.cwd() / "output")
+        out_dir.mkdir(parents=True, exist_ok=True)
+        slug = re.sub(r"[^a-z0-9]+", "-", (caption or "export").lower()).strip("-")
+        if not slug:
+            slug = "export"
+        stamp = datetime.now().strftime("%Y-%m-%d-%H-%M")
+        fname = f"{slug}-{stamp}.csv"
+        fpath = out_dir / fname
+        filtered.to_csv(fpath, index=False)
+        export_status.value = f"Saved {len(filtered)} rows → {fpath}"
+
     if env_dropdown is not None:
         env_dropdown.observe(_on_env_change, names="value")
     if cluster_dropdown is not None:
@@ -281,17 +307,23 @@ def style_table(df: pd.DataFrame, caption: str | None = None):
     page_size_dropdown.observe(_on_page_size_change, names="value")
     prev_btn.on_click(_on_prev)
     next_btn.on_click(_on_next)
+    export_btn.on_click(_on_export)
 
     filter_row = [w for w in (env_dropdown, cluster_dropdown) if w is not None]
     page_row = [page_size_dropdown, prev_btn, next_btn, page_label]
+    export_row = [export_btn, export_status]
 
     if filter_row:
         controls = widgets.VBox([
             widgets.HBox(filter_row),
             widgets.HBox(page_row),
+            widgets.HBox(export_row),
         ])
     else:
-        controls = widgets.HBox(page_row)
+        controls = widgets.VBox([
+            widgets.HBox(page_row),
+            widgets.HBox(export_row),
+        ])
 
     _render()
     return widgets.VBox([controls, out])
@@ -309,6 +341,10 @@ def bootstrap(db_relpath: str = "../datastore/ocp_audit.db"):
     datastore_dir = (notebook_dir / ".." / "datastore").resolve()
     if str(datastore_dir) not in sys.path:
         sys.path.insert(0, str(datastore_dir))
+
+    # Resolve and remember the repo-level ``output/`` directory for CSV exports.
+    global _OUTPUT_DIR
+    _OUTPUT_DIR = (notebook_dir / ".." / "output").resolve()
 
     # Imported here so OCP_AUDIT_DB is set before the engine is created.
     from schema.database import SessionLocal, engine  # noqa: WPS433
