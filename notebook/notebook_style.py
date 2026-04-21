@@ -345,6 +345,7 @@ def bootstrap(db_relpath: str = "../datastore/ocp_audit.db"):
     # Resolve and remember the repo-level ``output/`` directory for CSV exports.
     global _OUTPUT_DIR
     _OUTPUT_DIR = (notebook_dir / ".." / "output").resolve()
+    _OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     # Imported here so OCP_AUDIT_DB is set before the engine is created.
     from schema.database import SessionLocal, engine  # noqa: WPS433
