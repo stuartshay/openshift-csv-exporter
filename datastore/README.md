@@ -96,6 +96,25 @@ OCP_DATA_DIR=../output make load
 | `self_provisioner_bindings`        | Self-provisioners binding status per cluster              |
 | `self_provisioner_subjects`        | Subjects of the self-provisioners binding                 |
 
+### OCP-3: API & Console Access Restriction
+
+| Table                      | Description                                                            |
+|----------------------------|------------------------------------------------------------------------|
+| `apiserver_console_access` | One row per cluster — TLS profile, audit profile, encryption, client CA, CORS allow-list, custom serving certs, cluster-admin subject count |
+
+### OCP-4: Worker Node AuthN/AuthZ
+
+| Table              | Description                                                                 |
+|--------------------|-----------------------------------------------------------------------------|
+| `worker_node_auth` | One row per node per cluster — kubelet version, ready status, MachineConfig drift, kubelet anonymous auth + authorization mode overrides |
+
+### OCP-5: Cluster Admin/SRE Credential Management
+
+| Table                           | Description                                                   |
+|---------------------------------|---------------------------------------------------------------|
+| `credential_management_secrets` | One row per secret in the critical admin namespaces (`kube-system`, `openshift-config`, `openshift-config-managed`) with kubeadmin presence flag and age in days |
+| `cluster_admin_bindings`        | One row per subject currently bound to the `cluster-admin` role |
+
 ## Future: Postgres Migration
 
 Switch the dialect by setting `DATABASE_URL`:

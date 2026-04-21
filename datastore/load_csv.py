@@ -9,6 +9,9 @@ the normalised schema.  Each loader function handles one report type:
 - ``clusterrolebindings-*.csv``  -> clusterrolebindings + subjects
 - ``clusterrolebinding-self-provisioners-*.csv`` -> self_provisioner + subjects
 - ``apiserver-console-access-*.csv`` -> apiserver_console_access
+- ``worker-node-auth-*.csv``      -> worker_node_auth
+- ``credential-management-*.csv`` -> credential_management_secrets
+- ``cluster-admin-bindings-*.csv`` -> cluster_admin_bindings
 """
 
 from __future__ import annotations
@@ -25,6 +28,7 @@ from schema.database import Base, SessionLocal, engine
 from schema.models import (
     ApiServerConsoleAccess,
     Cluster,
+    ClusterAdminBinding,
     ClusterOverview,
     ClusterRole,
     ClusterRoleBinding,
@@ -34,9 +38,11 @@ from schema.models import (
     ClusterRoleRuleNonResourceUrl,
     ClusterRoleRuleResource,
     ClusterRoleRuleVerb,
+    CredentialManagementSecret,
     OAuthExternalAuth,
     SelfProvisionerBinding,
     SelfProvisionerSubject,
+    WorkerNodeAuth,
 )
 
 DATA_DIR = os.environ.get("OCP_DATA_DIR", "data")
@@ -397,6 +403,105 @@ def load_apiserver_console_access(session: Session) -> int:
     return count
 
 
+def load_worker_node_auth(session: Session) -> int:
+    """Load worker-node-auth CSVs. Returns row count."""
+    files = _find_csvs("worker-node-auth-*.csv")
+    count = 0
+    for filepath in files:
+        print(f"  Loading {Path(filepath).name}")
+        with open(filepath, newline="") as f:
+            for row in csv.DictReader(f):
+                cluster = _get_or_create_cluster(
+                    session,
+                    row["cluster_name"],
+                    row["cluster_context"],
+                    row["cluster_server"],
+                )
+                session.add(
+                    WorkerNodeAuth(
+                        cluster_id=cluster.id,
+                        node_name=row["node_name"],
+                        node_roles=row.get("node_roles") or None,
+                        kubelet_version=row.get("kubelet_version") or None,
+                        ready_status=row.get("ready_status") or None,
+                        internal_ip=row.get("internal_ip") or None,
+                        creation_timestamp=(row.get("creation_timestamp") or None),
+                        machine_config_state=(row.get("machine_config_state") or None),
+                        current_config=row.get("current_config") or None,
+                        desired_config=row.get("desired_config") or None,
+                        configs_match=_to_bool(row.get("configs_match", "")),
+                        kubelet_config_count=_to_int(
+                            row.get("kubelet_config_count", ""),
+                        ),
+                        anonymous_auth=row.get("anonymous_auth") or None,
+                        authorization_mode=(row.get("authorization_mode") or None),
+                    )
+                )
+                count += 1
+    return count
+
+
+def load_credential_management(session: Session) -> int:
+    """Load credential-management CSVs. Returns row count."""
+    files = _find_csvs("credential-management-*.csv")
+    count = 0
+    for filepath in files:
+        print(f"  Loading {Path(filepath).name}")
+        with open(filepath, newline="") as f:
+            for row in csv.DictReader(f):
+                cluster = _get_or_create_cluster(
+                    session,
+                    row["cluster_name"],
+                    row["cluster_context"],
+                    row["cluster_server"],
+                )
+                session.add(
+                    CredentialManagementSecret(
+                        cluster_id=cluster.id,
+                        kubeadmin_exists=_to_bool(
+                            row.get("kubeadmin_exists", ""),
+                        ),
+                        namespace=row.get("namespace") or None,
+                        secret_name=row.get("secret_name") or None,
+                        secret_type=row.get("secret_type") or None,
+                        creation_timestamp=(row.get("creation_timestamp") or None),
+                        age_days=_to_int(row.get("age_days", "")),
+                        service_account=(row.get("service_account") or None),
+                    )
+                )
+                count += 1
+    return count
+
+
+def load_cluster_admin_bindings(session: Session) -> int:
+    """Load cluster-admin-bindings CSVs. Returns row count."""
+    files = _find_csvs("cluster-admin-bindings-*.csv")
+    count = 0
+    for filepath in files:
+        print(f"  Loading {Path(filepath).name}")
+        with open(filepath, newline="") as f:
+            for row in csv.DictReader(f):
+                cluster = _get_or_create_cluster(
+                    session,
+                    row["cluster_name"],
+                    row["cluster_context"],
+                    row["cluster_server"],
+                )
+                session.add(
+                    ClusterAdminBinding(
+                        cluster_id=cluster.id,
+                        binding_name=row.get("binding_name") or None,
+                        role_ref_name=row.get("role_ref_name") or None,
+                        subject_kind=row.get("subject_kind") or None,
+                        subject_name=row.get("subject_name") or None,
+                        subject_namespace=(row.get("subject_namespace") or None),
+                        creation_timestamp=(row.get("creation_timestamp") or None),
+                    )
+                )
+                count += 1
+    return count
+
+
 # -- Main -------------------------------------------------------------------
 
 
@@ -432,6 +537,15 @@ def main() -> None:
 
         n = load_apiserver_console_access(session)
         print(f"  -> apiserver_console_access: {n} rows")
+
+        n = load_worker_node_auth(session)
+        print(f"  -> worker_node_auth: {n} rows")
+
+        n = load_credential_management(session)
+        print(f"  -> credential_management_secrets: {n} rows")
+
+        n = load_cluster_admin_bindings(session)
+        print(f"  -> cluster_admin_bindings: {n} rows")
 
         session.commit()
         print("Done -- all data committed.")
