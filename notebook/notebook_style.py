@@ -81,6 +81,14 @@ def _prepend_env_columns(df: pd.DataFrame) -> pd.DataFrame:
             out = out.drop(columns=[col])
     out.insert(0, "friendly_name", friendly_vals)
     out.insert(0, "env", env_vals)
+    # Default sort: env, then friendly_name (case-insensitive, NaNs last).
+    # Stable sort preserves original row order within ties.
+    out = out.sort_values(
+        by=["env", "friendly_name"],
+        key=lambda col: col.astype(str).str.lower(),
+        kind="stable",
+        na_position="last",
+    ).reset_index(drop=True)
     return out
 
 
