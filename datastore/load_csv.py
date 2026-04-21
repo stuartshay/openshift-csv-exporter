@@ -8,6 +8,7 @@ the normalised schema.  Each loader function handles one report type:
 - ``clusterroles-*.csv``         -> clusterroles + junction tables
 - ``clusterrolebindings-*.csv``  -> clusterrolebindings + subjects
 - ``clusterrolebinding-self-provisioners-*.csv`` -> self_provisioner + subjects
+- ``apiserver-console-access-*.csv`` -> apiserver_console_access
 """
 
 from __future__ import annotations
@@ -22,6 +23,7 @@ from sqlalchemy.orm import Session
 
 from schema.database import Base, SessionLocal, engine
 from schema.models import (
+    ApiServerConsoleAccess,
     Cluster,
     ClusterOverview,
     ClusterRole,
@@ -354,6 +356,47 @@ def load_self_provisioners(session: Session) -> int:
     return count
 
 
+def load_apiserver_console_access(session: Session) -> int:
+    """Load apiserver-console-access CSVs. Returns row count."""
+    files = _find_csvs("apiserver-console-access-*.csv")
+    count = 0
+    for filepath in files:
+        print(f"  Loading {Path(filepath).name}")
+        with open(filepath, newline="") as f:
+            for row in csv.DictReader(f):
+                cluster = _get_or_create_cluster(
+                    session,
+                    row["cluster_name"],
+                    row["cluster_context"],
+                    row["cluster_server"],
+                )
+                session.add(
+                    ApiServerConsoleAccess(
+                        cluster_id=cluster.id,
+                        api_server_url=row.get("api_server_url") or None,
+                        console_url=row.get("console_url") or None,
+                        tls_security_profile_type=(
+                            row.get("tls_security_profile_type") or None
+                        ),
+                        tls_min_version=row.get("tls_min_version") or None,
+                        audit_profile=row.get("audit_profile") or None,
+                        client_ca_name=row.get("client_ca_name") or None,
+                        encryption_type=row.get("encryption_type") or None,
+                        additional_cors_origins=(
+                            row.get("additional_cors_origins") or None
+                        ),
+                        serving_certs_count=_to_int(
+                            row.get("serving_certs_count", ""),
+                        ),
+                        cluster_admin_binding_count=_to_int(
+                            row.get("cluster_admin_binding_count", ""),
+                        ),
+                    )
+                )
+                count += 1
+    return count
+
+
 # -- Main -------------------------------------------------------------------
 
 
@@ -386,6 +429,9 @@ def main() -> None:
 
         n = load_self_provisioners(session)
         print(f"  -> self_provisioners: {n} rows")
+
+        n = load_apiserver_console_access(session)
+        print(f"  -> apiserver_console_access: {n} rows")
 
         session.commit()
         print("Done -- all data committed.")
