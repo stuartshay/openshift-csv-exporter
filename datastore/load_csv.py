@@ -47,6 +47,13 @@ from schema.models import (
 
 DATA_DIR = os.environ.get("OCP_DATA_DIR", "data")
 
+# Directory layout under DATA_DIR:
+#   - "nested" (default): recurse into per-environment / per-cluster sub-folders,
+#     e.g. data/DEV-DNA/aws-useast1-datalake-dev-1/cluster-overview-*.csv
+#   - "flat": legacy layout where every CSV sits directly in DATA_DIR.
+# Override with OCP_DATA_LAYOUT=flat to restore the original behaviour.
+DATA_LAYOUT = os.environ.get("OCP_DATA_LAYOUT", "nested").strip().lower()
+
 
 # -- Helpers ----------------------------------------------------------------
 
@@ -103,8 +110,20 @@ def _to_int(value: str) -> int | None:
 
 
 def _find_csvs(pattern: str) -> list[str]:
-    """Sorted CSV files matching *pattern* inside DATA_DIR."""
-    return sorted(glob.glob(os.path.join(DATA_DIR, pattern)))
+    """Sorted CSV files matching *pattern* inside DATA_DIR.
+
+    When ``OCP_DATA_LAYOUT`` is ``nested`` (default) the search recurses into
+    per-environment / per-cluster sub-folders, so a call with
+    ``"cluster-overview-*.csv"`` will also match
+    ``data/DEV-DNA/aws-useast1-datalake-dev-1/cluster-overview-*.csv``.
+    When set to ``flat`` only files directly in ``DATA_DIR`` are returned.
+    """
+    if DATA_LAYOUT == "flat":
+        return sorted(glob.glob(os.path.join(DATA_DIR, pattern)))
+    # nested: match either directly in DATA_DIR or any sub-directory.
+    top = glob.glob(os.path.join(DATA_DIR, pattern))
+    nested = glob.glob(os.path.join(DATA_DIR, "**", pattern), recursive=True)
+    return sorted(set(top) | set(nested))
 
 
 # -- Loaders ----------------------------------------------------------------
@@ -519,6 +538,9 @@ def main() -> None:
     session = SessionLocal()
     try:
         print(f"Loading CSV files from {data_path} ...")
+        print(
+            f"  Layout: {DATA_LAYOUT} (set OCP_DATA_LAYOUT=flat to disable recursion)"
+        )
 
         n = load_cluster_overview(session)
         print(f"  -> cluster_overview: {n} rows")
