@@ -57,11 +57,30 @@ def style_table(df: pd.DataFrame, caption: str | None = None):
 
     cluster_dropdown = None
     if has_cluster_col:
-        all_clusters = sorted(
-            v for v in df["cluster_name"].dropna().unique().tolist() if str(v) != ""
+        # Build (label, value) pairs: label = friendly_name when available,
+        # value = cluster_name. See `_cluster_options_for` below for details.
+        _init_cols = ["cluster_name"]
+        if "friendly_name" in df.columns:
+            _init_cols.append("friendly_name")
+        _init_subset = (
+            df[_init_cols]
+            .dropna(subset=["cluster_name"])
+            .drop_duplicates(subset=["cluster_name"])
         )
+        _init_opts: list = []
+        for _, _row in _init_subset.iterrows():
+            _cname = str(_row["cluster_name"])
+            if not _cname:
+                continue
+            _label = _cname
+            if "friendly_name" in _init_subset.columns:
+                _fn = _row["friendly_name"]
+                if pd.notna(_fn) and str(_fn) != "":
+                    _label = str(_fn)
+            _init_opts.append((_label, _cname))
+        _init_opts.sort(key=lambda t: t[0].lower())
         cluster_dropdown = widgets.Dropdown(
-            options=["All"] + all_clusters,
+            options=[("All", "All")] + _init_opts,
             value="All",
             description="Cluster:",
             layout=widgets.Layout(width="300px"),
@@ -103,6 +122,35 @@ def style_table(df: pd.DataFrame, caption: str | None = None):
     # Current page index (0-based). Mutable via dict to avoid `nonlocal`.
     state = {"page": 0}
 
+    def _cluster_options_for(pool: pd.DataFrame) -> list:
+        """Return [(label, cluster_name), ...] for the Cluster dropdown.
+
+        Label is ``friendly_name`` when available (and non-empty), otherwise
+        falls back to ``cluster_name``. De-duplicates by cluster_name and
+        sorts by label.
+        """
+        if not has_cluster_col:
+            return []
+        cols = ["cluster_name"]
+        if "friendly_name" in pool.columns:
+            cols.append("friendly_name")
+        subset = pool[cols].dropna(subset=["cluster_name"]).drop_duplicates(
+            subset=["cluster_name"]
+        )
+        options = []
+        for _, row in subset.iterrows():
+            cname = str(row["cluster_name"])
+            if not cname:
+                continue
+            label = cname
+            if "friendly_name" in subset.columns:
+                fn = row["friendly_name"]
+                if pd.notna(fn) and str(fn) != "":
+                    label = str(fn)
+            options.append((label, cname))
+        options.sort(key=lambda t: t[0].lower())
+        return options
+
     def _clusters_for_env(env_sel: str) -> list:
         if not has_cluster_col:
             return []
@@ -110,10 +158,7 @@ def style_table(df: pd.DataFrame, caption: str | None = None):
             pool = df
         else:
             pool = df[df["env"] == env_sel]
-        return sorted(
-            v for v in pool["cluster_name"].dropna().unique().tolist()
-            if str(v) != ""
-        )
+        return _cluster_options_for(pool)
 
     def _filtered_df() -> pd.DataFrame:
         filtered = df
@@ -160,14 +205,15 @@ def style_table(df: pd.DataFrame, caption: str | None = None):
         if change.get("name") != "value" or change.get("type") != "change":
             return
         if cluster_dropdown is not None:
-            new_opts = ["All"] + _clusters_for_env(change["new"])
+            new_opts = [("All", "All")] + _clusters_for_env(change["new"])
+            valid_values = {v for _, v in new_opts}
             current = cluster_dropdown.value
             # Reset Cluster to "All" whenever Env is set to "All"; otherwise
             # preserve the current selection if still valid for the new env.
             if change["new"] == "All":
                 new_value = "All"
             else:
-                new_value = current if current in new_opts else "All"
+                new_value = current if current in valid_values else "All"
             cluster_dropdown.unobserve(_on_cluster_change, names="value")
             cluster_dropdown.options = new_opts
             cluster_dropdown.value = new_value
@@ -218,7 +264,7 @@ def style_table(df: pd.DataFrame, caption: str | None = None):
             env_dropdown.value = "All"
         if cluster_dropdown is not None:
             # Restore the full cluster list (env was just reset to All).
-            cluster_dropdown.options = ["All"] + _clusters_for_env("All")
+            cluster_dropdown.options = [("All", "All")] + _clusters_for_env("All")
             cluster_dropdown.value = "All"
         page_size_dropdown.value = 25
         state["page"] = 0
