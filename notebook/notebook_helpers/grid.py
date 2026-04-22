@@ -35,7 +35,6 @@ def style_table(df: pd.DataFrame, caption: str | None = None):
 
     try:
         import ipywidgets as widgets  # noqa: WPS433
-        from IPython.display import clear_output, display  # noqa: WPS433
     except ModuleNotFoundError:
         # ipywidgets not available in current kernel — render unfiltered table.
         return build_styler(df, caption)
@@ -99,7 +98,7 @@ def style_table(df: pd.DataFrame, caption: str | None = None):
         layout=widgets.Layout(width="100px"),
     )
 
-    out = widgets.Output()
+    out = widgets.HTML(value="")
 
     # Current page index (0-based). Mutable via dict to avoid `nonlocal`.
     state = {"page": 0}
@@ -151,9 +150,7 @@ def style_table(df: pd.DataFrame, caption: str | None = None):
             next_btn.disabled = True
             page_label.value = f"{total} rows"
 
-        with out:
-            clear_output(wait=True)
-            display(build_styler(view, caption))
+        out.value = build_styler(view, caption).to_html()
 
     def _reset_and_render() -> None:
         state["page"] = 0
