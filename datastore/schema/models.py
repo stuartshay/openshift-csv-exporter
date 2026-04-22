@@ -49,9 +49,7 @@ class Cluster(Base):
     cluster_context: Mapped[str] = mapped_column(String, nullable=False)
     cluster_server: Mapped[str] = mapped_column(String, nullable=False)
 
-    __table_args__ = (
-        UniqueConstraint("cluster_name", "cluster_context", "cluster_server"),
-    )
+    __table_args__ = (UniqueConstraint("cluster_name", "cluster_context", "cluster_server"),)
 
     # relationships
     cluster_env = relationship("ClusterEnv", back_populates="cluster", uselist=False)
@@ -59,19 +57,11 @@ class Cluster(Base):
     oauth_external_auths = relationship("OAuthExternalAuth", back_populates="cluster")
     clusterroles = relationship("ClusterRole", back_populates="cluster")
     clusterrolebindings = relationship("ClusterRoleBinding", back_populates="cluster")
-    self_provisioner_bindings = relationship(
-        "SelfProvisionerBinding", back_populates="cluster"
-    )
-    apiserver_console_access = relationship(
-        "ApiServerConsoleAccess", back_populates="cluster"
-    )
+    self_provisioner_bindings = relationship("SelfProvisionerBinding", back_populates="cluster")
+    apiserver_console_access = relationship("ApiServerConsoleAccess", back_populates="cluster")
     worker_node_auths = relationship("WorkerNodeAuth", back_populates="cluster")
-    credential_management_secrets = relationship(
-        "CredentialManagementSecret", back_populates="cluster"
-    )
-    cluster_admin_bindings = relationship(
-        "ClusterAdminBinding", back_populates="cluster"
-    )
+    credential_management_secrets = relationship("CredentialManagementSecret", back_populates="cluster")
+    cluster_admin_bindings = relationship("ClusterAdminBinding", back_populates="cluster")
 
 
 class ClusterEnv(Base):
@@ -97,9 +87,7 @@ class ClusterOverview(Base):
     __tablename__ = "cluster_overview"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    cluster_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("clusters.id", ondelete="CASCADE"), nullable=False
-    )
+    cluster_id: Mapped[int] = mapped_column(Integer, ForeignKey("clusters.id", ondelete="CASCADE"), nullable=False)
     ocp_version: Mapped[str | None] = mapped_column(String, nullable=True)
     kubernetes_version: Mapped[str | None] = mapped_column(String, nullable=True)
     cluster_id_ocp: Mapped[str | None] = mapped_column(String, nullable=True)
@@ -132,9 +120,7 @@ class OAuthExternalAuth(Base):
     __tablename__ = "oauth_external_auth"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    cluster_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("clusters.id", ondelete="CASCADE"), nullable=False
-    )
+    cluster_id: Mapped[int] = mapped_column(Integer, ForeignKey("clusters.id", ondelete="CASCADE"), nullable=False)
     external_auth_enforced: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     kubeadmin_removed: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     identity_providers_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -143,9 +129,7 @@ class OAuthExternalAuth(Base):
     idp_mapping_method: Mapped[str | None] = mapped_column(String, nullable=True)
     idp_issuer: Mapped[str | None] = mapped_column(Text, nullable=True)
     idp_client_id: Mapped[str | None] = mapped_column(String, nullable=True)
-    access_token_max_age_seconds: Mapped[int | None] = mapped_column(
-        Integer, nullable=True
-    )
+    access_token_max_age_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     cluster = relationship("Cluster", back_populates="oauth_external_auths")
 
@@ -157,18 +141,14 @@ class ClusterRole(Base):
     __tablename__ = "clusterroles"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    cluster_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("clusters.id", ondelete="CASCADE"), nullable=False
-    )
+    cluster_id: Mapped[int] = mapped_column(Integer, ForeignKey("clusters.id", ondelete="CASCADE"), nullable=False)
     role_name: Mapped[str] = mapped_column(String, nullable=False)
     creation_timestamp: Mapped[str | None] = mapped_column(String, nullable=True)
 
     __table_args__ = (UniqueConstraint("cluster_id", "role_name"),)
 
     cluster = relationship("Cluster", back_populates="clusterroles")
-    rules = relationship(
-        "ClusterRoleRule", back_populates="clusterrole", cascade="all, delete-orphan"
-    )
+    rules = relationship("ClusterRoleRule", back_populates="clusterrole", cascade="all, delete-orphan")
 
 
 class ClusterRoleRule(Base):
@@ -265,9 +245,7 @@ class ClusterRoleBinding(Base):
     __tablename__ = "clusterrolebindings"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    cluster_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("clusters.id", ondelete="CASCADE"), nullable=False
-    )
+    cluster_id: Mapped[int] = mapped_column(Integer, ForeignKey("clusters.id", ondelete="CASCADE"), nullable=False)
     binding_name: Mapped[str] = mapped_column(String, nullable=False)
     role_ref_kind: Mapped[str | None] = mapped_column(String, nullable=True)
     role_ref_name: Mapped[str | None] = mapped_column(String, nullable=True)
@@ -305,9 +283,7 @@ class SelfProvisionerBinding(Base):
     __tablename__ = "self_provisioner_bindings"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    cluster_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("clusters.id", ondelete="CASCADE"), nullable=False
-    )
+    cluster_id: Mapped[int] = mapped_column(Integer, ForeignKey("clusters.id", ondelete="CASCADE"), nullable=False)
     binding_name: Mapped[str | None] = mapped_column(String, nullable=True)
     role_ref_kind: Mapped[str | None] = mapped_column(String, nullable=True)
     role_ref_name: Mapped[str | None] = mapped_column(String, nullable=True)
@@ -343,9 +319,7 @@ class ApiServerConsoleAccess(Base):
     __tablename__ = "apiserver_console_access"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    cluster_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("clusters.id", ondelete="CASCADE"), nullable=False
-    )
+    cluster_id: Mapped[int] = mapped_column(Integer, ForeignKey("clusters.id", ondelete="CASCADE"), nullable=False)
     api_server_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     console_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     tls_security_profile_type: Mapped[str | None] = mapped_column(String, nullable=True)
@@ -355,9 +329,7 @@ class ApiServerConsoleAccess(Base):
     encryption_type: Mapped[str | None] = mapped_column(String, nullable=True)
     additional_cors_origins: Mapped[str | None] = mapped_column(Text, nullable=True)
     serving_certs_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    cluster_admin_binding_count: Mapped[int | None] = mapped_column(
-        Integer, nullable=True
-    )
+    cluster_admin_binding_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     cluster = relationship("Cluster", back_populates="apiserver_console_access")
 
@@ -369,9 +341,7 @@ class WorkerNodeAuth(Base):
     __tablename__ = "worker_node_auth"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    cluster_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("clusters.id", ondelete="CASCADE"), nullable=False
-    )
+    cluster_id: Mapped[int] = mapped_column(Integer, ForeignKey("clusters.id", ondelete="CASCADE"), nullable=False)
     node_name: Mapped[str] = mapped_column(String, nullable=False)
     node_roles: Mapped[str | None] = mapped_column(String, nullable=True)
     kubelet_version: Mapped[str | None] = mapped_column(String, nullable=True)
@@ -396,9 +366,7 @@ class CredentialManagementSecret(Base):
     __tablename__ = "credential_management_secrets"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    cluster_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("clusters.id", ondelete="CASCADE"), nullable=False
-    )
+    cluster_id: Mapped[int] = mapped_column(Integer, ForeignKey("clusters.id", ondelete="CASCADE"), nullable=False)
     kubeadmin_exists: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     namespace: Mapped[str | None] = mapped_column(String, nullable=True)
     secret_name: Mapped[str | None] = mapped_column(String, nullable=True)
@@ -414,9 +382,7 @@ class ClusterAdminBinding(Base):
     __tablename__ = "cluster_admin_bindings"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    cluster_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("clusters.id", ondelete="CASCADE"), nullable=False
-    )
+    cluster_id: Mapped[int] = mapped_column(Integer, ForeignKey("clusters.id", ondelete="CASCADE"), nullable=False)
     binding_name: Mapped[str | None] = mapped_column(String, nullable=True)
     role_ref_name: Mapped[str | None] = mapped_column(String, nullable=True)
     subject_kind: Mapped[str | None] = mapped_column(String, nullable=True)
