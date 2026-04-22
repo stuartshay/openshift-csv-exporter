@@ -49,6 +49,7 @@ def seed_clusters(csv_path: Path) -> int:
             for row in reader:
                 server = row["cluster_server"].strip()
                 env = row["env"].strip()
+                friendly_name = (row.get("friendly_name") or "").strip() or None
 
                 if not server or not env:
                     print(f"  Skipping empty row: {row}")
@@ -71,10 +72,21 @@ def seed_clusters(csv_path: Path) -> int:
                     )
                     if existing:
                         existing.env = env
-                        print(f"  Updated: {cluster.cluster_name} -> env={env}")
+                        existing.friendly_name = friendly_name
+                        print(
+                            f"  Updated: {cluster.cluster_name} -> env={env}, friendly_name={friendly_name}"
+                        )
                     else:
-                        session.add(ClusterEnv(cluster_id=cluster.id, env=env))
-                        print(f"  Added:   {cluster.cluster_name} -> env={env}")
+                        session.add(
+                            ClusterEnv(
+                                cluster_id=cluster.id,
+                                env=env,
+                                friendly_name=friendly_name,
+                            )
+                        )
+                        print(
+                            f"  Added:   {cluster.cluster_name} -> env={env}, friendly_name={friendly_name}"
+                        )
                     upserted += 1
 
         session.commit()

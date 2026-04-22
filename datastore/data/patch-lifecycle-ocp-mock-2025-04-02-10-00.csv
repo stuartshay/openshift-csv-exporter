@@ -1,0 +1,28 @@
+cluster_name,cluster_context,cluster_server,check_category,resource_name,current_version,desired_version,versions_match,update_channel,available_updates,update_state,age_days,details
+ocp-prod-east,admin/api-ocp-prod-east:6443,https://api.ocp-prod-east.example.com:6443,clusterversion,version,4.18.28,4.18.28,true,stable-4.18,0,Completed,443,Cluster is on latest stable release
+ocp-prod-east,admin/api-ocp-prod-east:6443,https://api.ocp-prod-east.example.com:6443,machineconfigpool,master,rendered-master-abc,rendered-master-abc,true,,,,,3 of 3 nodes updated
+ocp-prod-east,admin/api-ocp-prod-east:6443,https://api.ocp-prod-east.example.com:6443,machineconfigpool,worker,rendered-worker-def,rendered-worker-def,true,,,,,6 of 6 nodes updated
+ocp-staging,admin/api-ocp-staging:6443,https://api.ocp-staging.example.com:6443,clusterversion,version,4.18.24,4.18.24,true,stable-4.18,2,Completed,397,2 updates available; 4 versions behind latest
+ocp-staging,admin/api-ocp-staging:6443,https://api.ocp-staging.example.com:6443,machineconfigpool,master,rendered-master-ghi,rendered-master-ghi,true,,,,,3 of 3 nodes updated
+ocp-staging,admin/api-ocp-staging:6443,https://api.ocp-staging.example.com:6443,machineconfigpool,worker,rendered-worker-jkl,rendered-worker-jkl,true,,,,,4 of 4 nodes updated
+ocp-dev,admin/api-ocp-dev:6443,https://api.ocp-dev.example.com:6443,clusterversion,version,4.18.18,4.18.18,true,fast-4.18,5,Completed,287,5 updates available; 10 versions behind latest
+ocp-dev,admin/api-ocp-dev:6443,https://api.ocp-dev.example.com:6443,machineconfigpool,master,rendered-master-mno,rendered-master-pqr,false,,,,,1 of 1 node updating
+ocp-dev,admin/api-ocp-dev:6443,https://api.ocp-dev.example.com:6443,machineconfigpool,worker,rendered-worker-stu,rendered-worker-stu,true,,,,,2 of 2 nodes updated
+ocp-prod-west,admin/api-ocp-prod-west:6443,https://api.ocp-prod-west.example.com:6443,clusterversion,version,4.18.28,4.18.28,true,stable-4.18,0,Completed,443,Cluster is on latest stable release
+ocp-prod-central,admin/api-ocp-prod-central:6443,https://api.ocp-prod-central.example.com:6443,clusterversion,version,4.18.28,4.18.28,true,stable-4.18,0,Completed,443,Cluster is on latest stable release
+ocp-prod-west,admin/api-ocp-prod-west:6443,https://api.ocp-prod-west.example.com:6443,machineconfigpool,master,rendered-master-abc,rendered-master-abc,true,,,,,3 of 3 nodes updated
+ocp-prod-central,admin/api-ocp-prod-central:6443,https://api.ocp-prod-central.example.com:6443,machineconfigpool,master,rendered-master-abc,rendered-master-abc,true,,,,,3 of 3 nodes updated
+ocp-prod-west,admin/api-ocp-prod-west:6443,https://api.ocp-prod-west.example.com:6443,machineconfigpool,worker,rendered-worker-def,rendered-worker-def,true,,,,,6 of 6 nodes updated
+ocp-prod-central,admin/api-ocp-prod-central:6443,https://api.ocp-prod-central.example.com:6443,machineconfigpool,worker,rendered-worker-def,rendered-worker-def,true,,,,,6 of 6 nodes updated
+ocp-stage-west,admin/api-ocp-stage-west:6443,https://api.ocp-stage-west.example.com:6443,clusterversion,version,4.18.24,4.18.24,true,stable-4.18,2,Completed,397,2 updates available; 4 versions behind latest
+ocp-stage-eu,admin/api-ocp-stage-eu:6443,https://api.ocp-stage-eu.example.com:6443,clusterversion,version,4.18.24,4.18.24,true,stable-4.18,2,Completed,397,2 updates available; 4 versions behind latest
+ocp-stage-west,admin/api-ocp-stage-west:6443,https://api.ocp-stage-west.example.com:6443,machineconfigpool,master,rendered-master-ghi,rendered-master-ghi,true,,,,,3 of 3 nodes updated
+ocp-stage-eu,admin/api-ocp-stage-eu:6443,https://api.ocp-stage-eu.example.com:6443,machineconfigpool,master,rendered-master-ghi,rendered-master-ghi,true,,,,,3 of 3 nodes updated
+ocp-stage-west,admin/api-ocp-stage-west:6443,https://api.ocp-stage-west.example.com:6443,machineconfigpool,worker,rendered-worker-jkl,rendered-worker-jkl,true,,,,,4 of 4 nodes updated
+ocp-stage-eu,admin/api-ocp-stage-eu:6443,https://api.ocp-stage-eu.example.com:6443,machineconfigpool,worker,rendered-worker-jkl,rendered-worker-jkl,true,,,,,4 of 4 nodes updated
+ocp-dev-west,admin/api-ocp-dev-west:6443,https://api.ocp-dev-west.example.com:6443,clusterversion,version,4.18.18,4.18.18,true,fast-4.18,5,Completed,287,5 updates available; 10 versions behind latest
+ocp-sandbox,admin/api-ocp-sandbox:6443,https://api.ocp-sandbox.example.com:6443,clusterversion,version,4.18.18,4.18.18,true,fast-4.18,5,Completed,287,5 updates available; 10 versions behind latest
+ocp-dev-west,admin/api-ocp-dev-west:6443,https://api.ocp-dev-west.example.com:6443,machineconfigpool,master,rendered-master-mno,rendered-master-pqr,false,,,,,1 of 1 node updating
+ocp-sandbox,admin/api-ocp-sandbox:6443,https://api.ocp-sandbox.example.com:6443,machineconfigpool,master,rendered-master-mno,rendered-master-pqr,false,,,,,1 of 1 node updating
+ocp-dev-west,admin/api-ocp-dev-west:6443,https://api.ocp-dev-west.example.com:6443,machineconfigpool,worker,rendered-worker-stu,rendered-worker-stu,true,,,,,2 of 2 nodes updated
+ocp-sandbox,admin/api-ocp-sandbox:6443,https://api.ocp-sandbox.example.com:6443,machineconfigpool,worker,rendered-worker-stu,rendered-worker-stu,true,,,,,2 of 2 nodes updated

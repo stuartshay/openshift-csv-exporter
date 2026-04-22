@@ -12,6 +12,9 @@ Cluster Overview:
 OCP-1  OAuth External Auth:
     oauth_external_auth               – one row per IDP per cluster
 
+OCP-3  API & Console Access Restriction:
+    apiserver_console_access          – one row per cluster
+
 OCP-2  ClusterRoles (normalised):
     clusterroles                      – one row per unique role
     clusterrole_rules                 – one row per RBAC rule
@@ -59,6 +62,16 @@ class Cluster(Base):
     self_provisioner_bindings = relationship(
         "SelfProvisionerBinding", back_populates="cluster"
     )
+    apiserver_console_access = relationship(
+        "ApiServerConsoleAccess", back_populates="cluster"
+    )
+    worker_node_auths = relationship("WorkerNodeAuth", back_populates="cluster")
+    credential_management_secrets = relationship(
+        "CredentialManagementSecret", back_populates="cluster"
+    )
+    cluster_admin_bindings = relationship(
+        "ClusterAdminBinding", back_populates="cluster"
+    )
 
 
 class ClusterEnv(Base):
@@ -72,6 +85,7 @@ class ClusterEnv(Base):
         unique=True,
     )
     env: Mapped[str] = mapped_column(String, nullable=False)
+    friendly_name: Mapped[str | None] = mapped_column(String, nullable=True)
 
     cluster = relationship("Cluster", back_populates="cluster_env")
 
@@ -320,3 +334,94 @@ class SelfProvisionerSubject(Base):
     subject_namespace: Mapped[str | None] = mapped_column(String, nullable=True)
 
     binding = relationship("SelfProvisionerBinding", back_populates="subjects")
+
+
+# ── OCP-3: API & Console Access Restriction ──────────────────────────────────
+
+
+class ApiServerConsoleAccess(Base):
+    __tablename__ = "apiserver_console_access"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    cluster_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("clusters.id", ondelete="CASCADE"), nullable=False
+    )
+    api_server_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    console_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    tls_security_profile_type: Mapped[str | None] = mapped_column(String, nullable=True)
+    tls_min_version: Mapped[str | None] = mapped_column(String, nullable=True)
+    audit_profile: Mapped[str | None] = mapped_column(String, nullable=True)
+    client_ca_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    encryption_type: Mapped[str | None] = mapped_column(String, nullable=True)
+    additional_cors_origins: Mapped[str | None] = mapped_column(Text, nullable=True)
+    serving_certs_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    cluster_admin_binding_count: Mapped[int | None] = mapped_column(
+        Integer, nullable=True
+    )
+
+    cluster = relationship("Cluster", back_populates="apiserver_console_access")
+
+
+# ── OCP-4: Worker Node AuthN/AuthZ ───────────────────────────────────────────
+
+
+class WorkerNodeAuth(Base):
+    __tablename__ = "worker_node_auth"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    cluster_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("clusters.id", ondelete="CASCADE"), nullable=False
+    )
+    node_name: Mapped[str] = mapped_column(String, nullable=False)
+    node_roles: Mapped[str | None] = mapped_column(String, nullable=True)
+    kubelet_version: Mapped[str | None] = mapped_column(String, nullable=True)
+    ready_status: Mapped[str | None] = mapped_column(String, nullable=True)
+    internal_ip: Mapped[str | None] = mapped_column(String, nullable=True)
+    creation_timestamp: Mapped[str | None] = mapped_column(String, nullable=True)
+    machine_config_state: Mapped[str | None] = mapped_column(String, nullable=True)
+    current_config: Mapped[str | None] = mapped_column(String, nullable=True)
+    desired_config: Mapped[str | None] = mapped_column(String, nullable=True)
+    configs_match: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    kubelet_config_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    anonymous_auth: Mapped[str | None] = mapped_column(String, nullable=True)
+    authorization_mode: Mapped[str | None] = mapped_column(String, nullable=True)
+
+    cluster = relationship("Cluster", back_populates="worker_node_auths")
+
+
+# ── OCP-5: Cluster Admin/SRE Credential Management ───────────────────────────
+
+
+class CredentialManagementSecret(Base):
+    __tablename__ = "credential_management_secrets"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    cluster_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("clusters.id", ondelete="CASCADE"), nullable=False
+    )
+    kubeadmin_exists: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    namespace: Mapped[str | None] = mapped_column(String, nullable=True)
+    secret_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    secret_type: Mapped[str | None] = mapped_column(String, nullable=True)
+    creation_timestamp: Mapped[str | None] = mapped_column(String, nullable=True)
+    age_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    service_account: Mapped[str | None] = mapped_column(String, nullable=True)
+
+    cluster = relationship("Cluster", back_populates="credential_management_secrets")
+
+
+class ClusterAdminBinding(Base):
+    __tablename__ = "cluster_admin_bindings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    cluster_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("clusters.id", ondelete="CASCADE"), nullable=False
+    )
+    binding_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    role_ref_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    subject_kind: Mapped[str | None] = mapped_column(String, nullable=True)
+    subject_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    subject_namespace: Mapped[str | None] = mapped_column(String, nullable=True)
+    creation_timestamp: Mapped[str | None] = mapped_column(String, nullable=True)
+
+    cluster = relationship("Cluster", back_populates="cluster_admin_bindings")

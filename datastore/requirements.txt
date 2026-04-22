@@ -1,1 +1,3 @@
 sqlalchemy>=2.0
+pandas
+jinja2

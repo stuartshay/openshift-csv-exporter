@@ -1,0 +1,40 @@
+cluster_name,cluster_context,cluster_server,check_category,check_name,status,details
+ocp-prod-east,admin/api-ocp-prod-east:6443,https://api.ocp-prod-east.example.com:6443,etcd_encryption,type,aescbc,Encryption provider configured
+ocp-prod-east,admin/api-ocp-prod-east:6443,https://api.ocp-prod-east.example.com:6443,etcd_encryption,status,Encrypted,All resources encrypted
+ocp-prod-east,admin/api-ocp-prod-east:6443,https://api.ocp-prod-east.example.com:6443,api_audit,profile,WriteRequestBodies,Audit logging enabled
+ocp-prod-east,admin/api-ocp-prod-east:6443,https://api.ocp-prod-east.example.com:6443,tls,min_version,VersionTLS12,TLS 1.2 minimum enforced
+ocp-prod-east,admin/api-ocp-prod-east:6443,https://api.ocp-prod-east.example.com:6443,control_plane_topology,topology,HighlyAvailable,3 master nodes
+ocp-staging,admin/api-ocp-staging:6443,https://api.ocp-staging.example.com:6443,etcd_encryption,type,aescbc,Encryption provider configured
+ocp-staging,admin/api-ocp-staging:6443,https://api.ocp-staging.example.com:6443,api_audit,profile,Default,Minimal audit logging
+ocp-staging,admin/api-ocp-staging:6443,https://api.ocp-staging.example.com:6443,tls,min_version,VersionTLS12,TLS 1.2 minimum enforced
+ocp-staging,admin/api-ocp-staging:6443,https://api.ocp-staging.example.com:6443,control_plane_topology,topology,HighlyAvailable,3 master nodes
+ocp-dev,admin/api-ocp-dev:6443,https://api.ocp-dev.example.com:6443,etcd_encryption,type,identity,Encryption not configured
+ocp-dev,admin/api-ocp-dev:6443,https://api.ocp-dev.example.com:6443,api_audit,profile,Default,Minimal audit logging
+ocp-dev,admin/api-ocp-dev:6443,https://api.ocp-dev.example.com:6443,tls,min_version,VersionTLS10,Weak TLS minimum
+ocp-dev,admin/api-ocp-dev:6443,https://api.ocp-dev.example.com:6443,control_plane_topology,topology,SingleReplica,Single master node
+ocp-prod-west,admin/api-ocp-prod-west:6443,https://api.ocp-prod-west.example.com:6443,etcd_encryption,type,aescbc,Encryption provider configured
+ocp-prod-central,admin/api-ocp-prod-central:6443,https://api.ocp-prod-central.example.com:6443,etcd_encryption,type,aescbc,Encryption provider configured
+ocp-prod-west,admin/api-ocp-prod-west:6443,https://api.ocp-prod-west.example.com:6443,etcd_encryption,status,Encrypted,All resources encrypted
+ocp-prod-central,admin/api-ocp-prod-central:6443,https://api.ocp-prod-central.example.com:6443,etcd_encryption,status,Encrypted,All resources encrypted
+ocp-prod-west,admin/api-ocp-prod-west:6443,https://api.ocp-prod-west.example.com:6443,api_audit,profile,WriteRequestBodies,Audit logging enabled
+ocp-prod-central,admin/api-ocp-prod-central:6443,https://api.ocp-prod-central.example.com:6443,api_audit,profile,WriteRequestBodies,Audit logging enabled
+ocp-prod-west,admin/api-ocp-prod-west:6443,https://api.ocp-prod-west.example.com:6443,tls,min_version,VersionTLS12,TLS 1.2 minimum enforced
+ocp-prod-central,admin/api-ocp-prod-central:6443,https://api.ocp-prod-central.example.com:6443,tls,min_version,VersionTLS12,TLS 1.2 minimum enforced
+ocp-prod-west,admin/api-ocp-prod-west:6443,https://api.ocp-prod-west.example.com:6443,control_plane_topology,topology,HighlyAvailable,3 master nodes
+ocp-prod-central,admin/api-ocp-prod-central:6443,https://api.ocp-prod-central.example.com:6443,control_plane_topology,topology,HighlyAvailable,3 master nodes
+ocp-stage-west,admin/api-ocp-stage-west:6443,https://api.ocp-stage-west.example.com:6443,etcd_encryption,type,aescbc,Encryption provider configured
+ocp-stage-eu,admin/api-ocp-stage-eu:6443,https://api.ocp-stage-eu.example.com:6443,etcd_encryption,type,aescbc,Encryption provider configured
+ocp-stage-west,admin/api-ocp-stage-west:6443,https://api.ocp-stage-west.example.com:6443,api_audit,profile,Default,Minimal audit logging
+ocp-stage-eu,admin/api-ocp-stage-eu:6443,https://api.ocp-stage-eu.example.com:6443,api_audit,profile,Default,Minimal audit logging
+ocp-stage-west,admin/api-ocp-stage-west:6443,https://api.ocp-stage-west.example.com:6443,tls,min_version,VersionTLS12,TLS 1.2 minimum enforced
+ocp-stage-eu,admin/api-ocp-stage-eu:6443,https://api.ocp-stage-eu.example.com:6443,tls,min_version,VersionTLS12,TLS 1.2 minimum enforced
+ocp-stage-west,admin/api-ocp-stage-west:6443,https://api.ocp-stage-west.example.com:6443,control_plane_topology,topology,HighlyAvailable,3 master nodes
+ocp-stage-eu,admin/api-ocp-stage-eu:6443,https://api.ocp-stage-eu.example.com:6443,control_plane_topology,topology,HighlyAvailable,3 master nodes
+ocp-dev-west,admin/api-ocp-dev-west:6443,https://api.ocp-dev-west.example.com:6443,etcd_encryption,type,identity,Encryption not configured
+ocp-sandbox,admin/api-ocp-sandbox:6443,https://api.ocp-sandbox.example.com:6443,etcd_encryption,type,identity,Encryption not configured
+ocp-dev-west,admin/api-ocp-dev-west:6443,https://api.ocp-dev-west.example.com:6443,api_audit,profile,Default,Minimal audit logging
+ocp-sandbox,admin/api-ocp-sandbox:6443,https://api.ocp-sandbox.example.com:6443,api_audit,profile,Default,Minimal audit logging
+ocp-dev-west,admin/api-ocp-dev-west:6443,https://api.ocp-dev-west.example.com:6443,tls,min_version,VersionTLS10,Weak TLS minimum
+ocp-sandbox,admin/api-ocp-sandbox:6443,https://api.ocp-sandbox.example.com:6443,tls,min_version,VersionTLS10,Weak TLS minimum
+ocp-dev-west,admin/api-ocp-dev-west:6443,https://api.ocp-dev-west.example.com:6443,control_plane_topology,topology,SingleReplica,Single master node
+ocp-sandbox,admin/api-ocp-sandbox:6443,https://api.ocp-sandbox.example.com:6443,control_plane_topology,topology,SingleReplica,Single master node

@@ -1,1 +1,10 @@
-cluster_server,env
+cluster_server,env,friendly_name
+https://api.ocp-prod-east.example.com:6443,prod,Prod East
+https://api.ocp-prod-west.example.com:6443,prod,Prod West
+https://api.ocp-prod-central.example.com:6443,prod,Prod Central
+https://api.ocp-staging.example.com:6443,stage,Staging
+https://api.ocp-stage-west.example.com:6443,stage,Stage West
+https://api.ocp-stage-eu.example.com:6443,stage,Stage EU
+https://api.ocp-dev.example.com:6443,dev,Dev
+https://api.ocp-dev-west.example.com:6443,dev,Dev West
+https://api.ocp-sandbox.example.com:6443,dev,Sandbox
