@@ -96,6 +96,31 @@ _TABLE_STYLES = [
 ]
 
 
+def format_age_years_days(days) -> str:
+    """Format a cluster age in days as ``"Ny Md"`` (e.g. ``"2y 34d"``).
+
+    Accepts int/float/str/None. Returns an empty string for missing/invalid
+    values. Negative values are treated as ``0``. ``365`` days per year
+    (calendar-agnostic) matches how ``cluster_age_days`` is exported.
+    """
+    try:
+        if days is None:
+            return ""
+        if isinstance(days, float) and pd.isna(days):
+            return ""
+        n = int(float(days))
+    except (TypeError, ValueError):
+        return ""
+    if n < 0:
+        n = 0
+    years, rem = divmod(n, 365)
+    if years and rem:
+        return f"{years}y {rem}d"
+    if years:
+        return f"{years}y"
+    return f"{rem}d"
+
+
 def _prepend_env_columns(df: pd.DataFrame) -> pd.DataFrame:
     """If ``df`` has a ``cluster_name`` column, insert ``env`` and
     ``friendly_name`` as the first two columns using the map populated by
@@ -220,6 +245,13 @@ def style_table(df: pd.DataFrame, caption: str | None = None):
     )
     export_status = widgets.Label(value="")
 
+    reset_btn = widgets.Button(
+        description="Reset",
+        icon="refresh",
+        tooltip="Clear filters, restore default page size, and jump back to page 1",
+        layout=widgets.Layout(width="100px"),
+    )
+
     out = widgets.Output()
 
     # Current page index (0-based). Mutable via list to avoid `nonlocal`.
@@ -328,6 +360,34 @@ def style_table(df: pd.DataFrame, caption: str | None = None):
         filtered.to_csv(fpath, index=False)
         export_status.value = f"Saved {len(filtered)} rows → {fpath}"
 
+    def _on_reset(_btn) -> None:
+        """Clear filters, restore default page size, and jump back to page 1."""
+        # Silence change handlers while we reset widget values so _render()
+        # is only invoked once at the end.
+        if env_dropdown is not None:
+            env_dropdown.unobserve(_on_env_change, names="value")
+        if cluster_dropdown is not None:
+            cluster_dropdown.unobserve(_on_cluster_change, names="value")
+        page_size_dropdown.unobserve(_on_page_size_change, names="value")
+
+        if env_dropdown is not None:
+            env_dropdown.value = "All"
+        if cluster_dropdown is not None:
+            # Restore the full cluster list (env was just reset to All).
+            cluster_dropdown.options = ["All"] + _clusters_for_env("All")
+            cluster_dropdown.value = "All"
+        page_size_dropdown.value = 25
+        state["page"] = 0
+        export_status.value = ""
+
+        if env_dropdown is not None:
+            env_dropdown.observe(_on_env_change, names="value")
+        if cluster_dropdown is not None:
+            cluster_dropdown.observe(_on_cluster_change, names="value")
+        page_size_dropdown.observe(_on_page_size_change, names="value")
+
+        _render()
+
     if env_dropdown is not None:
         env_dropdown.observe(_on_env_change, names="value")
     if cluster_dropdown is not None:
@@ -336,10 +396,11 @@ def style_table(df: pd.DataFrame, caption: str | None = None):
     prev_btn.on_click(_on_prev)
     next_btn.on_click(_on_next)
     export_btn.on_click(_on_export)
+    reset_btn.on_click(_on_reset)
 
     filter_row = [w for w in (env_dropdown, cluster_dropdown) if w is not None]
     page_row = [page_size_dropdown, prev_btn, next_btn, page_label]
-    export_row = [export_btn, export_status]
+    export_row = [export_btn, reset_btn, export_status]
 
     if filter_row:
         controls = widgets.VBox([
