@@ -115,24 +115,21 @@ def seed_clusters(csv_path: Path) -> int:
             env = row["env"]
             friendly_name = row["friendly_name"]
 
-            clusters = session.query(Cluster).filter_by(cluster_server=server).all()
-            # Guaranteed non-empty by _validate_coverage above.
-            for cluster in clusters:
-                existing = session.query(ClusterEnv).filter_by(cluster_id=cluster.id).first()
-                if existing:
-                    existing.env = env
-                    existing.friendly_name = friendly_name
-                    print(f"  Updated: {cluster.cluster_name} -> env={env}, friendly_name={friendly_name}")
-                else:
-                    session.add(
-                        ClusterEnv(
-                            cluster_id=cluster.id,
-                            env=env,
-                            friendly_name=friendly_name,
-                        )
+            existing = session.query(ClusterEnv).filter_by(cluster_server=server).first()
+            if existing:
+                existing.env = env
+                existing.friendly_name = friendly_name
+                print(f"  Updated: {server} -> env={env}, friendly_name={friendly_name}")
+            else:
+                session.add(
+                    ClusterEnv(
+                        cluster_server=server,
+                        env=env,
+                        friendly_name=friendly_name,
                     )
-                    print(f"  Added:   {cluster.cluster_name} -> env={env}, friendly_name={friendly_name}")
-                upserted += 1
+                )
+                print(f"  Added:   {server} -> env={env}, friendly_name={friendly_name}")
+            upserted += 1
 
         session.commit()
 

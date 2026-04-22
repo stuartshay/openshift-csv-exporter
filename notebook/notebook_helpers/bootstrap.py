@@ -59,20 +59,16 @@ def bootstrap(db_relpath: str = "../datastore/ocp_audit.db"):
 
     # Imported here so OCP_AUDIT_DB is set before the engine is created.
     from schema.database import SessionLocal, engine  # noqa: WPS433
-    from schema.models import Cluster, ClusterEnv  # noqa: WPS433
+    from schema.models import ClusterEnv  # noqa: WPS433
 
     session = SessionLocal()
     _state.LAST_SESSION = session
 
     # Build cluster_server -> (env, friendly_name) map for auto-prepend.
-    # Keyed by cluster_server because cluster_name may include the context
-    # suffix and is not a stable identifier across exports.
+    # ClusterEnv is keyed on cluster_server directly, so one row per real
+    # cluster regardless of how many kubeconfig contexts reference it.
     _state.CLUSTER_ENV_MAP.clear()
-    rows = (
-        session.query(Cluster.cluster_server, ClusterEnv.env, ClusterEnv.friendly_name)
-        .outerjoin(ClusterEnv, ClusterEnv.cluster_id == Cluster.id)
-        .all()
-    )
+    rows = session.query(ClusterEnv.cluster_server, ClusterEnv.env, ClusterEnv.friendly_name).all()
     for server, env, friendly in rows:
         _state.CLUSTER_ENV_MAP[server] = (env, friendly)
 

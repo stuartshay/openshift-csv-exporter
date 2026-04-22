@@ -52,7 +52,6 @@ class Cluster(Base):
     __table_args__ = (UniqueConstraint("cluster_name", "cluster_context", "cluster_server"),)
 
     # relationships
-    cluster_env = relationship("ClusterEnv", back_populates="cluster", uselist=False)
     cluster_overviews = relationship("ClusterOverview", back_populates="cluster")
     oauth_external_auths = relationship("OAuthExternalAuth", back_populates="cluster")
     clusterroles = relationship("ClusterRole", back_populates="cluster")
@@ -65,19 +64,18 @@ class Cluster(Base):
 
 
 class ClusterEnv(Base):
+    """Environment label keyed on ``cluster_server`` (the OCP API URL).
+
+    One row per real cluster, independent of how many kubeconfig contexts
+    (and therefore ``clusters`` rows) reference that same API URL.
+    """
+
     __tablename__ = "cluster_env"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    cluster_id: Mapped[int] = mapped_column(
-        Integer,
-        ForeignKey("clusters.id", ondelete="CASCADE"),
-        nullable=False,
-        unique=True,
-    )
+    cluster_server: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     env: Mapped[str] = mapped_column(String, nullable=False)
     friendly_name: Mapped[str | None] = mapped_column(String, nullable=True)
-
-    cluster = relationship("Cluster", back_populates="cluster_env")
 
 
 # ── Cluster Overview ──────────────────────────────────────────────────────────
