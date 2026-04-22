@@ -15,12 +15,13 @@ from .theme import build_styler
 def style_table(df: pd.DataFrame, caption: str | None = None):
     """Render a DataFrame as an env-filterable, paginated table.
 
-    If the DataFrame contains a ``cluster_name`` column, ``env`` and
+    If the DataFrame contains a ``cluster_server`` column, ``env`` and
     ``friendly_name`` are automatically prepended as the first two columns,
     and two dropdowns are shown above the grid (both default to ``All``):
 
     - **Env:** filters rows by environment (prod/stage/dev/…)
-    - **Cluster:** filters rows by a specific cluster_name; its options are
+    - **Cluster:** filters rows by a specific cluster (keyed by
+      ``cluster_server``, labeled with ``friendly_name``); its options are
       narrowed to the clusters available in the currently selected env.
 
     A **Rows:** dropdown (10 / 25 / 50 / 100 / All, default 25) and Prev /
@@ -40,7 +41,7 @@ def style_table(df: pd.DataFrame, caption: str | None = None):
         return build_styler(df, caption)
 
     has_env_col = "env" in df.columns
-    has_cluster_col = "cluster_name" in df.columns
+    has_cluster_col = "cluster_server" in df.columns
 
     env_dropdown = None
     if has_env_col:
@@ -58,26 +59,26 @@ def style_table(df: pd.DataFrame, caption: str | None = None):
     cluster_dropdown = None
     if has_cluster_col:
         # Build (label, value) pairs: label = friendly_name when available,
-        # value = cluster_name. See `_cluster_options_for` below for details.
-        _init_cols = ["cluster_name"]
+        # value = cluster_server. See `_cluster_options_for` below for details.
+        _init_cols = ["cluster_server"]
         if "friendly_name" in df.columns:
             _init_cols.append("friendly_name")
         _init_subset = (
             df[_init_cols]
-            .dropna(subset=["cluster_name"])
-            .drop_duplicates(subset=["cluster_name"])
+            .dropna(subset=["cluster_server"])
+            .drop_duplicates(subset=["cluster_server"])
         )
         _init_opts: list = []
         for _, _row in _init_subset.iterrows():
-            _cname = str(_row["cluster_name"])
-            if not _cname:
+            _server = str(_row["cluster_server"])
+            if not _server:
                 continue
-            _label = _cname
+            _label = _server
             if "friendly_name" in _init_subset.columns:
                 _fn = _row["friendly_name"]
                 if pd.notna(_fn) and str(_fn) != "":
                     _label = str(_fn)
-            _init_opts.append((_label, _cname))
+            _init_opts.append((_label, _server))
         _init_opts.sort(key=lambda t: t[0].lower())
         cluster_dropdown = widgets.Dropdown(
             options=[("All", "All")] + _init_opts,
@@ -123,31 +124,33 @@ def style_table(df: pd.DataFrame, caption: str | None = None):
     state = {"page": 0}
 
     def _cluster_options_for(pool: pd.DataFrame) -> list:
-        """Return [(label, cluster_name), ...] for the Cluster dropdown.
+        """Return [(label, cluster_server), ...] for the Cluster dropdown.
 
         Label is ``friendly_name`` when available (and non-empty), otherwise
-        falls back to ``cluster_name``. De-duplicates by cluster_name and
-        sorts by label.
+        falls back to ``cluster_server``. De-duplicates by cluster_server
+        and sorts by label. ``cluster_server`` is used as the key because
+        ``cluster_name`` may contain an appended kube context and is not
+        a stable identifier.
         """
         if not has_cluster_col:
             return []
-        cols = ["cluster_name"]
+        cols = ["cluster_server"]
         if "friendly_name" in pool.columns:
             cols.append("friendly_name")
-        subset = pool[cols].dropna(subset=["cluster_name"]).drop_duplicates(
-            subset=["cluster_name"]
+        subset = pool[cols].dropna(subset=["cluster_server"]).drop_duplicates(
+            subset=["cluster_server"]
         )
         options = []
         for _, row in subset.iterrows():
-            cname = str(row["cluster_name"])
-            if not cname:
+            server = str(row["cluster_server"])
+            if not server:
                 continue
-            label = cname
+            label = server
             if "friendly_name" in subset.columns:
                 fn = row["friendly_name"]
                 if pd.notna(fn) and str(fn) != "":
                     label = str(fn)
-            options.append((label, cname))
+            options.append((label, server))
         options.sort(key=lambda t: t[0].lower())
         return options
 
@@ -165,7 +168,7 @@ def style_table(df: pd.DataFrame, caption: str | None = None):
         if env_dropdown is not None and env_dropdown.value != "All":
             filtered = filtered[filtered["env"] == env_dropdown.value]
         if cluster_dropdown is not None and cluster_dropdown.value != "All":
-            filtered = filtered[filtered["cluster_name"] == cluster_dropdown.value]
+            filtered = filtered[filtered["cluster_server"] == cluster_dropdown.value]
         return filtered
 
     def _render() -> None:

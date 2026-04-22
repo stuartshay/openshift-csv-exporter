@@ -10,7 +10,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-# Populated by ``bootstrap()`` — maps cluster_name -> (env, friendly_name).
+# Populated by ``bootstrap()`` — maps cluster_server -> (env, friendly_name).
+# Keyed by cluster_server (the API URL) rather than cluster_name, because
+# cluster_name often has the kube context appended and is not a stable key.
 CLUSTER_ENV_MAP: dict[str, tuple[str | None, str | None]] = {}
 
 # Populated by ``bootstrap()`` — absolute path to the repo ``output/`` dir.

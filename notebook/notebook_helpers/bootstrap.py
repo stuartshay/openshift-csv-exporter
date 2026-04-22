@@ -64,15 +64,17 @@ def bootstrap(db_relpath: str = "../datastore/ocp_audit.db"):
     session = SessionLocal()
     _state.LAST_SESSION = session
 
-    # Build cluster_name -> (env, friendly_name) map for auto-prepend.
+    # Build cluster_server -> (env, friendly_name) map for auto-prepend.
+    # Keyed by cluster_server because cluster_name may include the context
+    # suffix and is not a stable identifier across exports.
     _state.CLUSTER_ENV_MAP.clear()
     rows = (
-        session.query(Cluster.cluster_name, ClusterEnv.env, ClusterEnv.friendly_name)
+        session.query(Cluster.cluster_server, ClusterEnv.env, ClusterEnv.friendly_name)
         .outerjoin(ClusterEnv, ClusterEnv.cluster_id == Cluster.id)
         .all()
     )
-    for name, env, friendly in rows:
-        _state.CLUSTER_ENV_MAP[name] = (env, friendly)
+    for server, env, friendly in rows:
+        _state.CLUSTER_ENV_MAP[server] = (env, friendly)
 
     pd.set_option("display.max_colwidth", 80)
     return session, engine
