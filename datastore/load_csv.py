@@ -64,16 +64,14 @@ def _get_or_create_cluster(
     context: str,
     server: str,
 ) -> Cluster:
-    """Return existing Cluster or create a new one."""
-    cluster = (
-        session.query(Cluster)
-        .filter_by(
-            cluster_name=name,
-            cluster_context=context,
-            cluster_server=server,
-        )
-        .first()
-    )
+    """Return existing Cluster (matched by ``cluster_server``) or create one.
+
+    ``cluster_server`` (the OCP API URL) is the stable identity of a cluster.
+    ``cluster_name`` and ``cluster_context`` vary per kubeconfig context (e.g.
+    ``default/api-...`` vs ``sshay/api-...``) and must NOT be part of the
+    dedup key — otherwise the same real cluster ends up with multiple rows.
+    """
+    cluster = session.query(Cluster).filter_by(cluster_server=server).first()
     if cluster is None:
         cluster = Cluster(
             cluster_name=name,
@@ -154,12 +152,8 @@ def load_cluster_overview(session: Session) -> int:
                             row.get("cluster_age_days", ""),
                         ),
                         platform=row.get("platform") or None,
-                        control_plane_topology=(
-                            row.get("control_plane_topology") or None
-                        ),
-                        infrastructure_topology=(
-                            row.get("infrastructure_topology") or None
-                        ),
+                        control_plane_topology=(row.get("control_plane_topology") or None),
+                        infrastructure_topology=(row.get("infrastructure_topology") or None),
                         master_count=_to_int(row.get("master_count", "")),
                         worker_count=_to_int(row.get("worker_count", "")),
                         infra_count=_to_int(row.get("infra_count", "")),
@@ -169,9 +163,7 @@ def load_cluster_overview(session: Session) -> int:
                         network_type=row.get("network_type") or None,
                         cluster_cidrs=row.get("cluster_cidrs") or None,
                         service_cidrs=row.get("service_cidrs") or None,
-                        default_ingress_domain=(
-                            row.get("default_ingress_domain") or None
-                        ),
+                        default_ingress_domain=(row.get("default_ingress_domain") or None),
                         console_url=row.get("console_url") or None,
                         api_server_url=row.get("api_server_url") or None,
                         update_channel=row.get("update_channel") or None,
@@ -400,16 +392,12 @@ def load_apiserver_console_access(session: Session) -> int:
                         cluster_id=cluster.id,
                         api_server_url=row.get("api_server_url") or None,
                         console_url=row.get("console_url") or None,
-                        tls_security_profile_type=(
-                            row.get("tls_security_profile_type") or None
-                        ),
+                        tls_security_profile_type=(row.get("tls_security_profile_type") or None),
                         tls_min_version=row.get("tls_min_version") or None,
                         audit_profile=row.get("audit_profile") or None,
                         client_ca_name=row.get("client_ca_name") or None,
                         encryption_type=row.get("encryption_type") or None,
-                        additional_cors_origins=(
-                            row.get("additional_cors_origins") or None
-                        ),
+                        additional_cors_origins=(row.get("additional_cors_origins") or None),
                         serving_certs_count=_to_int(
                             row.get("serving_certs_count", ""),
                         ),
@@ -538,9 +526,7 @@ def main() -> None:
     session = SessionLocal()
     try:
         print(f"Loading CSV files from {data_path} ...")
-        print(
-            f"  Layout: {DATA_LAYOUT} (set OCP_DATA_LAYOUT=flat to disable recursion)"
-        )
+        print(f"  Layout: {DATA_LAYOUT} (set OCP_DATA_LAYOUT=flat to disable recursion)")
 
         n = load_cluster_overview(session)
         print(f"  -> cluster_overview: {n} rows")
