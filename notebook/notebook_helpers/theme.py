@@ -56,6 +56,47 @@ def _env_prefix_format(value: object) -> str:
         return safe
     return f'<span style="{css}">{safe}</span>'
 
+
+# --- US datetime formatting -----------------------------------------------
+# Columns whose values should be rendered in US format (``MM/DD/YYYY
+# hh:MM AM/PM``) when present. Matched by exact name or by suffix.
+_US_DATE_COLUMN_NAMES = {"install_date", "created_at", "updated_at", "timestamp"}
+_US_DATE_COLUMN_SUFFIXES = ("_date", "_at", "_time", "_timestamp")
+
+
+def _is_date_like_column(name: str) -> bool:
+    if name in _US_DATE_COLUMN_NAMES:
+        return True
+    return any(name.endswith(s) for s in _US_DATE_COLUMN_SUFFIXES)
+
+
+def _format_us_datetime(value: object) -> str:
+    """Render a value as ``MM/DD/YYYY hh:MM AM/PM`` (US style).
+
+    Returns the original string representation unchanged if the value is
+    empty or not parseable as a timestamp. ISO 8601 strings with ``Z`` or
+    offset are accepted.
+    """
+    if value is None:
+        return ""
+    # Treat NaN/NaT as empty
+    try:
+        if pd.isna(value):  # type: ignore[arg-type]
+            return ""
+    except (TypeError, ValueError):
+        pass
+    ts = pd.to_datetime(value, errors="coerce", utc=False)
+    if pd.isna(ts):
+        return str(value)
+    # Cross-platform (Windows lacks %-m/%-d/%-I): format with zero-padded
+    # tokens and strip the leading zeros manually for a cleaner US style,
+    # e.g. ``6/20/2024 9:45 AM`` instead of ``06/20/2024 09:45 AM``.
+    date_part = f"{ts.month}/{ts.day}/{ts.year}"
+    hour_12 = ts.hour % 12 or 12
+    ampm = "AM" if ts.hour < 12 else "PM"
+    time_part = f"{hour_12}:{ts.minute:02d} {ampm}"
+    return f"{date_part} {time_part}"
+
 TABLE_STYLES = [
     {"selector": "thead th", "props": [
         ("background-color", HEADER_BG),
@@ -102,6 +143,10 @@ def build_styler(df: pd.DataFrame, caption: str | None = None):
             subset=tint_cols,
             escape=None,
         )
+    # Format date-like columns in US style (e.g. ``6/20/2024 9:45 AM``).
+    date_cols = [c for c in df.columns if _is_date_like_column(str(c))]
+    if date_cols:
+        styler = styler.format(_format_us_datetime, subset=date_cols)
     if caption:
         styler = styler.set_caption(caption).set_table_styles(
             [{"selector": "caption", "props": [
