@@ -71,7 +71,7 @@ def _is_date_like_column(name: str) -> bool:
 
 
 def _format_us_datetime(value: object) -> str:
-    """Render a value as ``MM/DD/YYYY hh:MM AM/PM`` (US style).
+    """Render a value as ``M/D/YYYY`` (US style, date only).
 
     Returns the original string representation unchanged if the value is
     empty or not parseable as a timestamp. ISO 8601 strings with ``Z`` or
@@ -88,14 +88,9 @@ def _format_us_datetime(value: object) -> str:
     ts = pd.to_datetime(value, errors="coerce", utc=False)
     if pd.isna(ts):
         return str(value)
-    # Cross-platform (Windows lacks %-m/%-d/%-I): format with zero-padded
-    # tokens and strip the leading zeros manually for a cleaner US style,
-    # e.g. ``6/20/2024 9:45 AM`` instead of ``06/20/2024 09:45 AM``.
-    date_part = f"{ts.month}/{ts.day}/{ts.year}"
-    hour_12 = ts.hour % 12 or 12
-    ampm = "AM" if ts.hour < 12 else "PM"
-    time_part = f"{hour_12}:{ts.minute:02d} {ampm}"
-    return f"{date_part} {time_part}"
+    # Cross-platform: build date string manually to avoid platform-specific
+    # strftime tokens like ``%-m``/``%-d`` (not supported on Windows).
+    return f"{ts.month}/{ts.day}/{ts.year}"
 
 TABLE_STYLES = [
     {"selector": "thead th", "props": [
