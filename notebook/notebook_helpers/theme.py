@@ -11,6 +11,31 @@ HOVER_BG = "rgba(224, 123, 57, 0.12)"
 FONT_FAMILY = "Segoe UI, Arial, sans-serif"
 FONT_SIZE = "13px"
 
+# Env-prefix colors. Matched case-insensitively against a leading
+# ``PROD-`` / ``STAGE-`` / ``DEV-`` prefix on the env value (and the
+# ``friendly_name`` column, which embeds the same prefix in production).
+ENV_PREFIX_COLORS = {
+    "prod": "#C62828",   # red
+    "stage": "#F59E0B",  # amber
+    "dev": "#2E7D32",    # green
+}
+
+
+def _env_prefix_color(value: object) -> str:
+    """Return a CSS ``color:...;font-weight:600`` rule for known env prefixes.
+
+    Matches ``PROD-...`` / ``STAGE-...`` / ``DEV-...`` case-insensitively,
+    as well as a bare ``prod`` / ``stage`` / ``dev`` value. Unknown values
+    get no styling.
+    """
+    if not isinstance(value, str) or not value:
+        return ""
+    head = value.split("-", 1)[0].strip().lower()
+    color = ENV_PREFIX_COLORS.get(head)
+    if not color:
+        return ""
+    return f"color: {color}; font-weight: 600;"
+
 TABLE_STYLES = [
     {"selector": "thead th", "props": [
         ("background-color", HEADER_BG),
@@ -44,6 +69,11 @@ TABLE_STYLES = [
 def build_styler(df: pd.DataFrame, caption: str | None = None):
     """Apply the shared orange-header theme to an already-prepared DataFrame."""
     styler = df.style.hide(axis="index").set_table_styles(TABLE_STYLES)
+    # Colorize env prefixes (PROD-/STAGE-/DEV-, case-insensitive) on the
+    # ``env`` and ``friendly_name`` columns when they are present.
+    tint_cols = [c for c in ("env", "friendly_name") if c in df.columns]
+    if tint_cols:
+        styler = styler.map(_env_prefix_color, subset=tint_cols)
     if caption:
         styler = styler.set_caption(caption).set_table_styles(
             [{"selector": "caption", "props": [
