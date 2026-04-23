@@ -15,7 +15,7 @@ FONT_SIZE = "13px"
 # ``PROD-`` / ``STAGE-`` / ``DEV-`` prefix on the env value (and the
 # ``friendly_name`` column, which embeds the same prefix in production).
 ENV_PREFIX_COLORS = {
-    "prod": "#C62828",   # red
+    "prod": "#1E40AF",   # deep indigo (neutral-but-distinct; red reserved for errors)
     "stage": "#F59E0B",  # amber
     "dev": "#2E7D32",    # green
 }
