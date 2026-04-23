@@ -26,6 +26,7 @@ def reset() -> None:
             pass
         _state.LAST_SESSION = None
     _state.CLUSTER_ENV_MAP.clear()
+    _state.CLUSTER_NAME_MAP.clear()
     try:
         import ipywidgets as widgets  # noqa: WPS433
 
@@ -60,7 +61,7 @@ def bootstrap(db_relpath: str = "../datastore/ocp_audit.db"):
 
     # Imported here so OCP_AUDIT_DB is set before the engine is created.
     from schema.database import SessionLocal, engine  # noqa: WPS433
-    from schema.models import ClusterEnv  # noqa: WPS433
+    from schema.models import Cluster, ClusterEnv  # noqa: WPS433
 
     session = SessionLocal()
     _state.LAST_SESSION = session
@@ -72,6 +73,16 @@ def bootstrap(db_relpath: str = "../datastore/ocp_audit.db"):
     rows = session.query(ClusterEnv.cluster_server, ClusterEnv.env, ClusterEnv.friendly_name).all()
     for server, env, friendly in rows:
         _state.CLUSTER_ENV_MAP[server] = (env, friendly)
+
+    # Build cluster_name -> cluster_server map so grids whose underlying
+    # query selects only ``cluster_name`` can still be joined back to env /
+    # friendly_name. Last write wins on collisions (cluster_name should be
+    # unique in the datastore in practice).
+    _state.CLUSTER_NAME_MAP.clear()
+    name_rows = session.query(Cluster.cluster_name, Cluster.cluster_server).all()
+    for name, server in name_rows:
+        if name and server:
+            _state.CLUSTER_NAME_MAP[name] = server
 
     pd.set_option("display.max_colwidth", 80)
     return session, engine

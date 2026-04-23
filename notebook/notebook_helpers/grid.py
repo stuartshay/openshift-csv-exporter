@@ -1,4 +1,5 @@
 """Interactive ipywidgets grid: env/cluster filters, pagination, export, reset."""
+
 from __future__ import annotations
 
 import re
@@ -34,10 +35,18 @@ def style_table(df: pd.DataFrame, caption: str | None = None):
     """
     df = prepend_env_columns(df)
 
+    # When ``cluster_server`` was derived purely so we could enable the
+    # Cluster filter on grids whose query didn't select it, hide it from
+    # the rendered view so the visible columns match what the caller asked
+    # for. The column stays on ``df`` for filtering / export.
+    hide_cluster_server = bool(df.attrs.get("_derived_cluster_server"))
+
     try:
         import ipywidgets as widgets  # noqa: WPS433
     except ModuleNotFoundError:
         # ipywidgets not available in current kernel — render unfiltered table.
+        if hide_cluster_server and "cluster_server" in df.columns:
+            return build_styler(df.drop(columns=["cluster_server"]), caption)
         return build_styler(df, caption)
 
     has_env_col = "env" in df.columns
@@ -45,9 +54,7 @@ def style_table(df: pd.DataFrame, caption: str | None = None):
 
     env_dropdown = None
     if has_env_col:
-        env_values = sorted(
-            v for v in df["env"].dropna().unique().tolist() if str(v) != ""
-        )
+        env_values = sorted(v for v in df["env"].dropna().unique().tolist() if str(v) != "")
         env_dropdown = widgets.Dropdown(
             options=["All"] + env_values,
             value="All",
@@ -63,11 +70,7 @@ def style_table(df: pd.DataFrame, caption: str | None = None):
         _init_cols = ["cluster_server"]
         if "friendly_name" in df.columns:
             _init_cols.append("friendly_name")
-        _init_subset = (
-            df[_init_cols]
-            .dropna(subset=["cluster_server"])
-            .drop_duplicates(subset=["cluster_server"])
-        )
+        _init_subset = df[_init_cols].dropna(subset=["cluster_server"]).drop_duplicates(subset=["cluster_server"])
         _init_opts: list = []
         for _, _row in _init_subset.iterrows():
             _server = str(_row["cluster_server"])
@@ -95,12 +98,8 @@ def style_table(df: pd.DataFrame, caption: str | None = None):
         layout=widgets.Layout(width="140px"),
         style={"description_width": "45px"},
     )
-    prev_btn = widgets.Button(
-        description="◀ Prev", layout=widgets.Layout(width="80px")
-    )
-    next_btn = widgets.Button(
-        description="Next ▶", layout=widgets.Layout(width="80px")
-    )
+    prev_btn = widgets.Button(description="◀ Prev", layout=widgets.Layout(width="80px"))
+    next_btn = widgets.Button(description="Next ▶", layout=widgets.Layout(width="80px"))
     page_label = widgets.Label(value="")
 
     export_btn = widgets.Button(
@@ -137,9 +136,7 @@ def style_table(df: pd.DataFrame, caption: str | None = None):
         cols = ["cluster_server"]
         if "friendly_name" in pool.columns:
             cols.append("friendly_name")
-        subset = pool[cols].dropna(subset=["cluster_server"]).drop_duplicates(
-            subset=["cluster_server"]
-        )
+        subset = pool[cols].dropna(subset=["cluster_server"]).drop_duplicates(subset=["cluster_server"])
         options = []
         for _, row in subset.iterrows():
             server = str(row["cluster_server"])
@@ -188,16 +185,15 @@ def style_table(df: pd.DataFrame, caption: str | None = None):
             if total == 0:
                 page_label.value = "0 rows"
             else:
-                page_label.value = (
-                    f"{start + 1}–{end} of {total}  "
-                    f"(page {state['page'] + 1}/{last_page + 1})"
-                )
+                page_label.value = f"{start + 1}–{end} of {total}  (page {state['page'] + 1}/{last_page + 1})"
         else:
             view = filtered
             prev_btn.disabled = True
             next_btn.disabled = True
             page_label.value = f"{total} rows"
 
+        if hide_cluster_server and "cluster_server" in view.columns:
+            view = view.drop(columns=["cluster_server"])
         out.value = build_styler(view, caption).to_html()
 
     def _reset_and_render() -> None:
@@ -242,6 +238,8 @@ def style_table(df: pd.DataFrame, caption: str | None = None):
 
     def _on_export(_btn) -> None:
         filtered = _filtered_df()
+        if hide_cluster_server and "cluster_server" in filtered.columns:
+            filtered = filtered.drop(columns=["cluster_server"])
         out_dir = _state.OUTPUT_DIR or (Path.cwd() / "output")
         out_dir.mkdir(parents=True, exist_ok=True)
         slug = re.sub(r"[^a-z0-9]+", "-", (caption or "export").lower()).strip("-")
@@ -296,16 +294,20 @@ def style_table(df: pd.DataFrame, caption: str | None = None):
     export_row = [export_btn, reset_btn, export_status]
 
     if filter_row:
-        controls = widgets.VBox([
-            widgets.HBox(filter_row),
-            widgets.HBox(page_row),
-            widgets.HBox(export_row),
-        ])
+        controls = widgets.VBox(
+            [
+                widgets.HBox(filter_row),
+                widgets.HBox(page_row),
+                widgets.HBox(export_row),
+            ]
+        )
     else:
-        controls = widgets.VBox([
-            widgets.HBox(page_row),
-            widgets.HBox(export_row),
-        ])
+        controls = widgets.VBox(
+            [
+                widgets.HBox(page_row),
+                widgets.HBox(export_row),
+            ]
+        )
 
     _render()
     return widgets.VBox([controls, out])
