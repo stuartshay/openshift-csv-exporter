@@ -1,4 +1,5 @@
 """Session + sys.path bootstrap for the OCP audit notebooks."""
+
 from __future__ import annotations
 
 import os

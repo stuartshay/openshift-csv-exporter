@@ -37,7 +37,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
 
-
 # ── Shared ────────────────────────────────────────────────────────────────────
 
 
@@ -47,9 +46,9 @@ class Cluster(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     cluster_name: Mapped[str] = mapped_column(String, nullable=False)
     cluster_context: Mapped[str] = mapped_column(String, nullable=False)
-    cluster_server: Mapped[str] = mapped_column(String, nullable=False)
+    cluster_server: Mapped[str] = mapped_column(String, nullable=False, unique=True)
 
-    __table_args__ = (UniqueConstraint("cluster_name", "cluster_context", "cluster_server"),)
+    __table_args__ = (UniqueConstraint("cluster_server"),)
 
     # relationships
     cluster_overviews = relationship("ClusterOverview", back_populates="cluster")

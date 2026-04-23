@@ -64,16 +64,14 @@ def _get_or_create_cluster(
     context: str,
     server: str,
 ) -> Cluster:
-    """Return existing Cluster or create a new one."""
-    cluster = (
-        session.query(Cluster)
-        .filter_by(
-            cluster_name=name,
-            cluster_context=context,
-            cluster_server=server,
-        )
-        .first()
-    )
+    """Return existing Cluster (matched by ``cluster_server``) or create one.
+
+    ``cluster_server`` (the OCP API URL) is the stable identity of a cluster.
+    ``cluster_name`` and ``cluster_context`` vary per kubeconfig context (e.g.
+    ``default/api-...`` vs ``sshay/api-...``) and must NOT be part of the
+    dedup key — otherwise the same real cluster ends up with multiple rows.
+    """
+    cluster = session.query(Cluster).filter_by(cluster_server=server).first()
     if cluster is None:
         cluster = Cluster(
             cluster_name=name,
