@@ -36,6 +36,26 @@ def _env_prefix_color(value: object) -> str:
         return ""
     return f"color: {color}; font-weight: 600;"
 
+
+def _env_prefix_format(value: object) -> str:
+    """Wrap known env-prefixed values in an inline-styled ``<span>``.
+
+    Using inline styles (instead of a ``<style>`` block keyed on the table
+    id) ensures the colors survive when the rendered HTML is embedded in an
+    ``ipywidgets.HTML`` widget, which strips/scopes top-level ``<style>``
+    tags in some notebook renderers (notably VS Code).
+    """
+    from html import escape as _html_escape
+
+    if value is None:
+        return ""
+    text = str(value)
+    css = _env_prefix_color(text)
+    safe = _html_escape(text)
+    if not css:
+        return safe
+    return f'<span style="{css}">{safe}</span>'
+
 TABLE_STYLES = [
     {"selector": "thead th", "props": [
         ("background-color", HEADER_BG),
@@ -70,10 +90,18 @@ def build_styler(df: pd.DataFrame, caption: str | None = None):
     """Apply the shared orange-header theme to an already-prepared DataFrame."""
     styler = df.style.hide(axis="index").set_table_styles(TABLE_STYLES)
     # Colorize env prefixes (PROD-/STAGE-/DEV-, case-insensitive) on the
-    # ``env`` and ``friendly_name`` columns when they are present.
+    # ``env`` and ``friendly_name`` columns when they are present. We use
+    # ``Styler.format`` to emit an inline-styled ``<span>`` so the colors
+    # survive when the HTML is embedded in an ``ipywidgets.HTML`` widget
+    # (VS Code's notebook renderer strips/scopes top-level ``<style>``
+    # blocks, which would otherwise hide ``Styler.map`` rules).
     tint_cols = [c for c in ("env", "friendly_name") if c in df.columns]
     if tint_cols:
-        styler = styler.map(_env_prefix_color, subset=tint_cols)
+        styler = styler.format(
+            _env_prefix_format,
+            subset=tint_cols,
+            escape=None,
+        )
     if caption:
         styler = styler.set_caption(caption).set_table_styles(
             [{"selector": "caption", "props": [
