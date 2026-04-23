@@ -1,5 +1,8 @@
 [tool.ruff]
 line-length = 120
+# IPython adds these to every notebook's global scope; tell ruff so F821 doesn't
+# flag them in Jupyter notebooks (checked by nbqa-ruff).
+builtins = ["display", "get_ipython"]
 
 [tool.ruff.lint]
 # Disable line-length enforcement and docstring rules across the repo.
@@ -37,6 +40,11 @@ add_ignore = [
 
 [tool.mypy]
 ignore_missing_imports = true
+
+[tool.isort]
+# Keep isort compatible with black (used together via nbqa on notebooks).
+profile = "black"
+line_length = 120
 
 [tool.pycodestyle]
 max-line-length = 999
