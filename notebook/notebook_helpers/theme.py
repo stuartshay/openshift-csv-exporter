@@ -92,6 +92,67 @@ def _format_us_datetime(value: object) -> str:
     # strftime tokens like ``%-m``/``%-d`` (not supported on Windows).
     return f"{ts.month}/{ts.day}/{ts.year}"
 
+
+# --- Boolean column coloring ----------------------------------------------
+# Columns whose values are True/False (or the strings "True"/"False") get
+# colored inline: green for True, red for False. Applied only to columns
+# whose non-null values are entirely boolean-like, so integer or free-text
+# columns remain untouched.
+_BOOL_TRUE_COLOR = "#2E7D32"   # green
+_BOOL_FALSE_COLOR = "#C62828"  # red
+_BOOL_TRUE_STRINGS = {"true"}
+_BOOL_FALSE_STRINGS = {"false"}
+
+
+def _is_bool_like_column(series: pd.Series) -> bool:
+    """Return True when every non-null value is a bool or 'true'/'false' string."""
+    if pd.api.types.is_bool_dtype(series):
+        return True
+    non_null = series.dropna()
+    if non_null.empty:
+        return False
+    for v in non_null:
+        if isinstance(v, bool):
+            continue
+        if isinstance(v, str) and v.strip().lower() in (_BOOL_TRUE_STRINGS | _BOOL_FALSE_STRINGS):
+            continue
+        return False
+    return True
+
+
+def _format_bool(value: object) -> str:
+    """Render a boolean-like value as a colored ``<span>``.
+
+    - ``True`` / ``"true"``  → green ``True``
+    - ``False`` / ``"false"`` → red ``False``
+    - Anything else is returned as its (HTML-escaped) string form.
+    """
+    from html import escape as _html_escape
+
+    if value is None:
+        return ""
+    try:
+        if pd.isna(value):  # type: ignore[arg-type]
+            return ""
+    except (TypeError, ValueError):
+        pass
+    if isinstance(value, bool):
+        is_true = value
+    elif isinstance(value, str):
+        v = value.strip().lower()
+        if v in _BOOL_TRUE_STRINGS:
+            is_true = True
+        elif v in _BOOL_FALSE_STRINGS:
+            is_true = False
+        else:
+            return _html_escape(value)
+    else:
+        return _html_escape(str(value))
+    color = _BOOL_TRUE_COLOR if is_true else _BOOL_FALSE_COLOR
+    label = "True" if is_true else "False"
+    return f'<span style="color: {color}; font-weight: 600;">{label}</span>'
+
+
 TABLE_STYLES = [
     {"selector": "thead th", "props": [
         ("background-color", HEADER_BG),
@@ -142,6 +203,15 @@ def build_styler(df: pd.DataFrame, caption: str | None = None):
     date_cols = [c for c in df.columns if _is_date_like_column(str(c))]
     if date_cols:
         styler = styler.format(_format_us_datetime, subset=date_cols)
+    # Color True/False values in boolean-like columns (green/red). Skip
+    # columns already claimed by other formatters.
+    claimed = set(tint_cols) | set(date_cols)
+    bool_cols = [
+        c for c in df.columns
+        if c not in claimed and _is_bool_like_column(df[c])
+    ]
+    if bool_cols:
+        styler = styler.format(_format_bool, subset=bool_cols, escape=None)
     if caption:
         styler = styler.set_caption(caption).set_table_styles(
             [{"selector": "caption", "props": [

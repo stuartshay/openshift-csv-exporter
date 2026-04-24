@@ -101,6 +101,10 @@ def style_table(df: pd.DataFrame, caption: str | None = None):
     prev_btn = widgets.Button(description="◀ Prev", layout=widgets.Layout(width="80px"))
     next_btn = widgets.Button(description="Next ▶", layout=widgets.Layout(width="80px"))
     page_label = widgets.Label(value="")
+    cluster_count_label = widgets.Label(
+        value="",
+        layout=widgets.Layout(margin="0 0 0 16px"),
+    )
 
     export_btn = widgets.Button(
         description="Export CSV",
@@ -196,6 +200,13 @@ def style_table(df: pd.DataFrame, caption: str | None = None):
             view = view.drop(columns=["cluster_server"])
         out.value = build_styler(view, caption).to_html()
 
+        if has_cluster_col:
+            unique_clusters = filtered["cluster_server"].dropna().astype(str)
+            unique_clusters = unique_clusters[unique_clusters != ""].nunique()
+            cluster_count_label.value = f"Total Cluster Count: {unique_clusters}"
+        else:
+            cluster_count_label.value = ""
+
     def _reset_and_render() -> None:
         state["page"] = 0
         _render()
@@ -290,7 +301,7 @@ def style_table(df: pd.DataFrame, caption: str | None = None):
     reset_btn.on_click(_on_reset)
 
     filter_row = [w for w in (env_dropdown, cluster_dropdown) if w is not None]
-    page_row = [page_size_dropdown, prev_btn, next_btn, page_label]
+    page_row = [page_size_dropdown, prev_btn, next_btn, page_label, cluster_count_label]
     export_row = [export_btn, reset_btn, export_status]
 
     if filter_row:
