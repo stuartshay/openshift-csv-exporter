@@ -21,6 +21,8 @@ from schema.models import (  # noqa: F401
     ClusterRoleRuleResource,
     ClusterRoleRuleVerb,
     OAuthExternalAuth,
+    PlatformGuardrail,
+    PolicyAsCodeConstraint,
     SelfProvisionerBinding,
     SelfProvisionerSubject,
 )

@@ -40,6 +40,8 @@ from schema.models import (
     ClusterRoleRuleVerb,
     CredentialManagementSecret,
     OAuthExternalAuth,
+    PlatformGuardrail,
+    PolicyAsCodeConstraint,
     SelfProvisionerBinding,
     SelfProvisionerSubject,
     WorkerNodeAuth,
@@ -509,6 +511,74 @@ def load_cluster_admin_bindings(session: Session) -> int:
     return count
 
 
+def load_platform_guardrails(session: Session) -> int:
+    """Load platform-guardrails CSVs (OCP-6). Returns row count."""
+    files = _find_csvs("platform-guardrails-*.csv")
+    count = 0
+    for filepath in files:
+        print(f"  Loading {Path(filepath).name}")
+        with open(filepath, newline="") as f:
+            for row in csv.DictReader(f):
+                cluster = _get_or_create_cluster(
+                    session,
+                    row["cluster_name"],
+                    row["cluster_context"],
+                    row["cluster_server"],
+                )
+                session.add(
+                    PlatformGuardrail(
+                        cluster_id=cluster.id,
+                        ocp_version=row.get("ocp_version") or None,
+                        cluster_id_ocp=row.get("cluster_id") or None,
+                        update_channel=row.get("update_channel") or None,
+                        update_state=row.get("update_state") or None,
+                        platform=row.get("platform") or None,
+                        control_plane_topology=(row.get("control_plane_topology") or None),
+                        infrastructure_topology=(row.get("infrastructure_topology") or None),
+                        total_operators=_to_int(row.get("total_operators", "")),
+                        degraded_count=_to_int(row.get("degraded_count", "")),
+                        unavailable_count=_to_int(row.get("unavailable_count", "")),
+                        degraded_operators=(row.get("degraded_operators") or None),
+                        unavailable_operators=(row.get("unavailable_operators") or None),
+                    )
+                )
+                count += 1
+    return count
+
+
+def load_policy_as_code(session: Session) -> int:
+    """Load policy-as-code CSVs (OCP-7). Returns row count."""
+    files = _find_csvs("policy-as-code-*.csv")
+    count = 0
+    for filepath in files:
+        print(f"  Loading {Path(filepath).name}")
+        with open(filepath, newline="") as f:
+            for row in csv.DictReader(f):
+                cluster = _get_or_create_cluster(
+                    session,
+                    row["cluster_name"],
+                    row["cluster_context"],
+                    row["cluster_server"],
+                )
+                session.add(
+                    PolicyAsCodeConstraint(
+                        cluster_id=cluster.id,
+                        gatekeeper_installed=_to_bool(
+                            row.get("gatekeeper_installed", ""),
+                        ),
+                        gatekeeper_namespace=(row.get("gatekeeper_namespace") or None),
+                        constraint_template=(row.get("constraint_template") or None),
+                        constraint_name=(row.get("constraint_name") or None),
+                        enforcement_action=(row.get("enforcement_action") or None),
+                        total_violations=_to_int(row.get("total_violations", "")),
+                        match_kinds=row.get("match_kinds") or None,
+                        match_namespaces=row.get("match_namespaces") or None,
+                    )
+                )
+                count += 1
+    return count
+
+
 # -- Main -------------------------------------------------------------------
 
 
@@ -554,6 +624,12 @@ def main() -> None:
 
         n = load_cluster_admin_bindings(session)
         print(f"  -> cluster_admin_bindings: {n} rows")
+
+        n = load_platform_guardrails(session)
+        print(f"  -> platform_guardrails: {n} rows")
+
+        n = load_policy_as_code(session)
+        print(f"  -> policy_as_code_constraints: {n} rows")
 
         session.commit()
         print("Done -- all data committed.")

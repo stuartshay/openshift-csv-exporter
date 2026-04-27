@@ -26,6 +26,8 @@ class Cluster(Base):
     worker_node_auths = relationship("WorkerNodeAuth", back_populates="cluster")
     credential_management_secrets = relationship("CredentialManagementSecret", back_populates="cluster")
     cluster_admin_bindings = relationship("ClusterAdminBinding", back_populates="cluster")
+    platform_guardrails = relationship("PlatformGuardrail", back_populates="cluster")
+    policy_as_code_constraints = relationship("PolicyAsCodeConstraint", back_populates="cluster")
 
 
 class ClusterEnv(Base):
