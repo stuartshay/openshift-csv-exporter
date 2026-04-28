@@ -6,7 +6,13 @@ every class so ``from schema.models import X`` continues to work.
 
 from .api_console import ApiServerConsoleAccess
 from .cluster import Cluster, ClusterEnv
-from .configuration import PlatformGuardrail, PolicyAsCodeConstraint
+from .configuration import (
+    CICDPipelineDetection,
+    ControlPlaneProtection,
+    PatchLifecycleCheck,
+    PlatformGuardrail,
+    PolicyAsCodeConstraint,
+)
 from .credentials import ClusterAdminBinding, CredentialManagementSecret
 from .oauth import OAuthExternalAuth
 from .overview import ClusterOverview
@@ -26,6 +32,7 @@ from .worker_node import WorkerNodeAuth
 
 __all__ = [
     "ApiServerConsoleAccess",
+    "CICDPipelineDetection",
     "Cluster",
     "ClusterAdminBinding",
     "ClusterEnv",
@@ -38,8 +45,10 @@ __all__ = [
     "ClusterRoleRuleNonResourceUrl",
     "ClusterRoleRuleResource",
     "ClusterRoleRuleVerb",
+    "ControlPlaneProtection",
     "CredentialManagementSecret",
     "OAuthExternalAuth",
+    "PatchLifecycleCheck",
     "PlatformGuardrail",
     "PolicyAsCodeConstraint",
     "SelfProvisionerBinding",

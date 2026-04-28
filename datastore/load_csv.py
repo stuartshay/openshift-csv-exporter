@@ -27,6 +27,7 @@ from sqlalchemy.orm import Session
 from schema.database import Base, SessionLocal, engine
 from schema.models import (
     ApiServerConsoleAccess,
+    CICDPipelineDetection,
     Cluster,
     ClusterAdminBinding,
     ClusterOverview,
@@ -38,8 +39,10 @@ from schema.models import (
     ClusterRoleRuleNonResourceUrl,
     ClusterRoleRuleResource,
     ClusterRoleRuleVerb,
+    ControlPlaneProtection,
     CredentialManagementSecret,
     OAuthExternalAuth,
+    PatchLifecycleCheck,
     PlatformGuardrail,
     PolicyAsCodeConstraint,
     SelfProvisionerBinding,
@@ -579,6 +582,100 @@ def load_policy_as_code(session: Session) -> int:
     return count
 
 
+def load_cicd_pipeline_enforcement(session: Session) -> int:
+    """Load CI/CD pipeline enforcement CSVs (OCP-8). Returns row count."""
+    files = _find_csvs("cicd-pipeline-enforcement-*.csv")
+    count = 0
+    for filepath in files:
+        print(f"  Loading {Path(filepath).name}")
+        with open(filepath, newline="") as f:
+            for row in csv.DictReader(f):
+                cluster = _get_or_create_cluster(
+                    session,
+                    row["cluster_name"],
+                    row["cluster_context"],
+                    row["cluster_server"],
+                )
+                session.add(
+                    CICDPipelineDetection(
+                        cluster_id=cluster.id,
+                        detection_type=(row.get("detection_type") or None),
+                        tool_name=(row.get("tool_name") or None),
+                        installed=_to_bool(row.get("installed", "")),
+                        namespace=(row.get("namespace") or None),
+                        resource_name=(row.get("resource_name") or None),
+                        detail_1=(row.get("detail_1") or None),
+                        detail_2=(row.get("detail_2") or None),
+                        detail_3=(row.get("detail_3") or None),
+                        detail_4=(row.get("detail_4") or None),
+                        detail_5=(row.get("detail_5") or None),
+                        detail_6=(row.get("detail_6") or None),
+                    )
+                )
+                count += 1
+    return count
+
+
+def load_control_plane_protections(session: Session) -> int:
+    """Load control plane protection CSVs (OCP-9). Returns row count."""
+    files = _find_csvs("control-plane-protections-*.csv")
+    count = 0
+    for filepath in files:
+        print(f"  Loading {Path(filepath).name}")
+        with open(filepath, newline="") as f:
+            for row in csv.DictReader(f):
+                cluster = _get_or_create_cluster(
+                    session,
+                    row["cluster_name"],
+                    row["cluster_context"],
+                    row["cluster_server"],
+                )
+                session.add(
+                    ControlPlaneProtection(
+                        cluster_id=cluster.id,
+                        check_category=(row.get("check_category") or None),
+                        check_name=(row.get("check_name") or None),
+                        status=(row.get("status") or None),
+                        details=(row.get("details") or None),
+                    )
+                )
+                count += 1
+    return count
+
+
+def load_patch_lifecycle(session: Session) -> int:
+    """Load patch lifecycle CSVs (OCP-10). Returns row count."""
+    files = _find_csvs("patch-lifecycle-*.csv")
+    count = 0
+    for filepath in files:
+        print(f"  Loading {Path(filepath).name}")
+        with open(filepath, newline="") as f:
+            for row in csv.DictReader(f):
+                cluster = _get_or_create_cluster(
+                    session,
+                    row["cluster_name"],
+                    row["cluster_context"],
+                    row["cluster_server"],
+                )
+                session.add(
+                    PatchLifecycleCheck(
+                        cluster_id=cluster.id,
+                        check_category=(row.get("check_category") or None),
+                        resource_name=(row.get("resource_name") or None),
+                        current_version=(row.get("current_version") or None),
+                        desired_version=(row.get("desired_version") or None),
+                        versions_match=_to_bool(row.get("versions_match", "")),
+                        update_channel=(row.get("update_channel") or None),
+                        available_updates=_to_int(row.get("available_updates", "")),
+                        update_state=(row.get("update_state") or None),
+                        age_days=_to_int(row.get("age_days", "")),
+                        details=(row.get("details") or None),
+                    )
+                )
+                count += 1
+    return count
+
+
 # -- Main -------------------------------------------------------------------
 
 
@@ -630,6 +727,15 @@ def main() -> None:
 
         n = load_policy_as_code(session)
         print(f"  -> policy_as_code_constraints: {n} rows")
+
+        n = load_cicd_pipeline_enforcement(session)
+        print(f"  -> cicd_pipeline_detections: {n} rows")
+
+        n = load_control_plane_protections(session)
+        print(f"  -> control_plane_protections: {n} rows")
+
+        n = load_patch_lifecycle(session)
+        print(f"  -> patch_lifecycle_checks: {n} rows")
 
         session.commit()
         print("Done -- all data committed.")

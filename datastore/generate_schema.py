@@ -11,6 +11,7 @@ from schema.database import Base, engine
 
 # Import models so they register with Base.metadata.
 from schema.models import (  # noqa: F401
+    CICDPipelineDetection,
     Cluster,
     ClusterRole,
     ClusterRoleBinding,
@@ -20,7 +21,9 @@ from schema.models import (  # noqa: F401
     ClusterRoleRuleNonResourceUrl,
     ClusterRoleRuleResource,
     ClusterRoleRuleVerb,
+    ControlPlaneProtection,
     OAuthExternalAuth,
+    PatchLifecycleCheck,
     PlatformGuardrail,
     PolicyAsCodeConstraint,
     SelfProvisionerBinding,

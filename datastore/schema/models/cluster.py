@@ -28,6 +28,9 @@ class Cluster(Base):
     cluster_admin_bindings = relationship("ClusterAdminBinding", back_populates="cluster")
     platform_guardrails = relationship("PlatformGuardrail", back_populates="cluster")
     policy_as_code_constraints = relationship("PolicyAsCodeConstraint", back_populates="cluster")
+    cicd_pipeline_detections = relationship("CICDPipelineDetection", back_populates="cluster")
+    control_plane_protections = relationship("ControlPlaneProtection", back_populates="cluster")
+    patch_lifecycle_checks = relationship("PatchLifecycleCheck", back_populates="cluster")
 
 
 class ClusterEnv(Base):
