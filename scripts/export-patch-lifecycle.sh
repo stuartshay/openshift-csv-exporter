@@ -253,7 +253,7 @@ echo "$NODES_JSON" | jq -c '.items[] | {
       AVG_PER_NODE=0
       REMAINING=0
     fi
-    echo "[patch-lifecycle]   Node $NODE_IDX/$NODE_COUNT: $NODE_NAME (${NODE_ITEM_ELAPSED}s) — elapsed: ${NODE_LOOP_ELAPSED}s, avg: ${AVG_PER_NODE}s/node, ETA: ~${REMAINING}s remaining"
+    echo "[patch-lifecycle]   Node $NODE_IDX/$NODE_COUNT: $NODE_NAME (${NODE_ITEM_ELAPSED}s) — elapsed: ${NODE_LOOP_ELAPSED}s, avg: ${AVG_PER_NODE}s/node, ETA: ~${REMAINING}s remaining" >&2
   done
 } >> "$OUTPUT_FILE"
 

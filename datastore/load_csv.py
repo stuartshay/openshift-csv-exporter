@@ -22,8 +22,6 @@ import os
 import sys
 from pathlib import Path
 
-from sqlalchemy.orm import Session
-
 from schema.database import Base, SessionLocal, engine
 from schema.models import (
     ApiServerConsoleAccess,
@@ -49,6 +47,7 @@ from schema.models import (
     SelfProvisionerSubject,
     WorkerNodeAuth,
 )
+from sqlalchemy.orm import Session
 
 DATA_DIR = os.environ.get("OCP_DATA_DIR", "data")
 
