@@ -39,10 +39,13 @@ from schema.models import (
     ClusterRoleRuleVerb,
     ControlPlaneProtection,
     CredentialManagementSecret,
+    DisasterRecoveryBackup,
     OAuthExternalAuth,
+    OlmGovernance,
     PatchLifecycleCheck,
     PlatformGuardrail,
     PolicyAsCodeConstraint,
+    SecretsCertRotation,
     SelfProvisionerBinding,
     SelfProvisionerSubject,
     WorkerNodeAuth,
@@ -675,6 +678,105 @@ def load_patch_lifecycle(session: Session) -> int:
     return count
 
 
+def load_secrets_cert_rotation(session: Session) -> int:
+    """Load secrets-cert-rotation CSVs (OCP-11). Returns row count."""
+    files = _find_csvs("secrets-cert-rotation-*.csv")
+    count = 0
+    for filepath in files:
+        print(f"  Loading {Path(filepath).name}")
+        with open(filepath, newline="") as f:
+            for row in csv.DictReader(f):
+                cluster = _get_or_create_cluster(
+                    session,
+                    row["cluster_name"],
+                    row["cluster_context"],
+                    row["cluster_server"],
+                )
+                session.add(
+                    SecretsCertRotation(
+                        cluster_id=cluster.id,
+                        record_type=(row.get("record_type") or None),
+                        namespace=(row.get("namespace") or None),
+                        resource_name=(row.get("resource_name") or None),
+                        secret_type=(row.get("secret_type") or None),
+                        creation_timestamp=(row.get("creation_timestamp") or None),
+                        age_days=_to_int(row.get("age_days", "")),
+                        signer_name=(row.get("signer_name") or None),
+                        requestor=(row.get("requestor") or None),
+                        condition=(row.get("condition") or None),
+                        annotations_rotation=(row.get("annotations_rotation") or None),
+                    )
+                )
+                count += 1
+    return count
+
+
+def load_disaster_recovery_backup(session: Session) -> int:
+    """Load disaster-recovery-backup CSVs (OCP-12). Returns row count."""
+    files = _find_csvs("disaster-recovery-backup-*.csv")
+    count = 0
+    for filepath in files:
+        print(f"  Loading {Path(filepath).name}")
+        with open(filepath, newline="") as f:
+            for row in csv.DictReader(f):
+                cluster = _get_or_create_cluster(
+                    session,
+                    row["cluster_name"],
+                    row["cluster_context"],
+                    row["cluster_server"],
+                )
+                session.add(
+                    DisasterRecoveryBackup(
+                        cluster_id=cluster.id,
+                        record_type=(row.get("record_type") or None),
+                        resource_name=(row.get("resource_name") or None),
+                        namespace=(row.get("namespace") or None),
+                        condition_available=_to_bool(row.get("condition_available", "")),
+                        condition_degraded=_to_bool(row.get("condition_degraded", "")),
+                        condition_progressing=_to_bool(row.get("condition_progressing", "")),
+                        detail=(row.get("detail") or None),
+                        message=(row.get("message") or None),
+                        last_transition=(row.get("last_transition") or None),
+                        age_days=_to_int(row.get("age_days", "")),
+                    )
+                )
+                count += 1
+    return count
+
+
+def load_olm_governance(session: Session) -> int:
+    """Load olm-governance CSVs (OCP-13). Returns row count."""
+    files = _find_csvs("olm-governance-*.csv")
+    count = 0
+    for filepath in files:
+        print(f"  Loading {Path(filepath).name}")
+        with open(filepath, newline="") as f:
+            for row in csv.DictReader(f):
+                cluster = _get_or_create_cluster(
+                    session,
+                    row["cluster_name"],
+                    row["cluster_context"],
+                    row["cluster_server"],
+                )
+                session.add(
+                    OlmGovernance(
+                        cluster_id=cluster.id,
+                        record_type=(row.get("record_type") or None),
+                        name=(row.get("name") or None),
+                        namespace=(row.get("namespace") or None),
+                        detail_1=(row.get("detail_1") or None),
+                        detail_2=(row.get("detail_2") or None),
+                        detail_3=(row.get("detail_3") or None),
+                        detail_4=(row.get("detail_4") or None),
+                        detail_5=(row.get("detail_5") or None),
+                        detail_6=(row.get("detail_6") or None),
+                        detail_7=(row.get("detail_7") or None),
+                    )
+                )
+                count += 1
+    return count
+
+
 # -- Main -------------------------------------------------------------------
 
 
@@ -735,6 +837,15 @@ def main() -> None:
 
         n = load_patch_lifecycle(session)
         print(f"  -> patch_lifecycle_checks: {n} rows")
+
+        n = load_secrets_cert_rotation(session)
+        print(f"  -> secrets_cert_rotations: {n} rows")
+
+        n = load_disaster_recovery_backup(session)
+        print(f"  -> disaster_recovery_backups: {n} rows")
+
+        n = load_olm_governance(session)
+        print(f"  -> olm_governance: {n} rows")
 
         session.commit()
         print("Done -- all data committed.")

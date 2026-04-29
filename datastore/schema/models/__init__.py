@@ -15,6 +15,11 @@ from .configuration import (
 )
 from .credentials import ClusterAdminBinding, CredentialManagementSecret
 from .oauth import OAuthExternalAuth
+from .operations import (
+    DisasterRecoveryBackup,
+    OlmGovernance,
+    SecretsCertRotation,
+)
 from .overview import ClusterOverview
 from .rbac import (
     ClusterRole,
@@ -47,10 +52,13 @@ __all__ = [
     "ClusterRoleRuleVerb",
     "ControlPlaneProtection",
     "CredentialManagementSecret",
+    "DisasterRecoveryBackup",
     "OAuthExternalAuth",
+    "OlmGovernance",
     "PatchLifecycleCheck",
     "PlatformGuardrail",
     "PolicyAsCodeConstraint",
+    "SecretsCertRotation",
     "SelfProvisionerBinding",
     "SelfProvisionerSubject",
     "WorkerNodeAuth",

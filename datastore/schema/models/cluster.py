@@ -31,6 +31,9 @@ class Cluster(Base):
     cicd_pipeline_detections = relationship("CICDPipelineDetection", back_populates="cluster")
     control_plane_protections = relationship("ControlPlaneProtection", back_populates="cluster")
     patch_lifecycle_checks = relationship("PatchLifecycleCheck", back_populates="cluster")
+    secrets_cert_rotations = relationship("SecretsCertRotation", back_populates="cluster")
+    disaster_recovery_backups = relationship("DisasterRecoveryBackup", back_populates="cluster")
+    olm_governance = relationship("OlmGovernance", back_populates="cluster")
 
 
 class ClusterEnv(Base):
