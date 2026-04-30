@@ -148,3 +148,28 @@ class EtcdEncryptionStatus(Base):
     message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     cluster = relationship("Cluster", back_populates="etcd_encryption_status_records")
+
+
+class GovernancePolicyEcosystem(Base):
+    """OCP-15: one row per detected governance / policy product on a cluster.
+
+    Records cover policy engines (Gatekeeper, Kyverno), Compliance Operator,
+    ACS/StackRox, ACM, Quay registry policy, etc. ``record_type`` is
+    typically ``operator`` or ``policy``; ``detail_1..detail_3`` capture
+    free-form ``key=value`` flags emitted by the export script.
+    """
+
+    __tablename__ = "governance_policy_ecosystem"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    cluster_id: Mapped[int] = mapped_column(Integer, ForeignKey("clusters.id", ondelete="CASCADE"), nullable=False)
+    record_type: Mapped[str | None] = mapped_column(String, nullable=True)
+    product_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    installed: Mapped[bool | None] = mapped_column(nullable=True)
+    namespace: Mapped[str | None] = mapped_column(String, nullable=True)
+    operator_version: Mapped[str | None] = mapped_column(String, nullable=True)
+    detail_1: Mapped[str | None] = mapped_column(String, nullable=True)
+    detail_2: Mapped[str | None] = mapped_column(String, nullable=True)
+    detail_3: Mapped[str | None] = mapped_column(String, nullable=True)
+
+    cluster = relationship("Cluster", back_populates="governance_policy_ecosystem")

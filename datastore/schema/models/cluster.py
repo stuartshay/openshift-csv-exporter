@@ -35,6 +35,7 @@ class Cluster(Base):
     secrets_cert_rotations = relationship("SecretsCertRotation", back_populates="cluster")
     disaster_recovery_backups = relationship("DisasterRecoveryBackup", back_populates="cluster")
     olm_governance = relationship("OlmGovernance", back_populates="cluster")
+    governance_policy_ecosystem = relationship("GovernancePolicyEcosystem", back_populates="cluster")
 
 
 class ClusterEnv(Base):

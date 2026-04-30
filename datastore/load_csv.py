@@ -42,6 +42,7 @@ from schema.models import (
     CredentialManagementSecret,
     DisasterRecoveryBackup,
     EtcdEncryptionStatus,
+    GovernancePolicyEcosystem,
     OAuthExternalAuth,
     OlmGovernance,
     PatchLifecycleCheck,
@@ -779,6 +780,37 @@ def load_olm_governance(session: Session) -> int:
     return count
 
 
+def load_governance_policy_ecosystem(session: Session) -> int:
+    """Load governance-policy-ecosystem CSVs (OCP-15). Returns row count."""
+    files = _find_csvs("governance-policy-ecosystem-*.csv")
+    count = 0
+    for filepath in files:
+        print(f"  Loading {Path(filepath).name}")
+        with open(filepath, newline="") as f:
+            for row in csv.DictReader(f):
+                cluster = _get_or_create_cluster(
+                    session,
+                    row["cluster_name"],
+                    row["cluster_context"],
+                    row["cluster_server"],
+                )
+                session.add(
+                    GovernancePolicyEcosystem(
+                        cluster_id=cluster.id,
+                        record_type=(row.get("record_type") or None),
+                        product_name=(row.get("product_name") or None),
+                        installed=_to_bool(row.get("installed", "")),
+                        namespace=(row.get("namespace") or None),
+                        operator_version=(row.get("operator_version") or None),
+                        detail_1=(row.get("detail_1") or None),
+                        detail_2=(row.get("detail_2") or None),
+                        detail_3=(row.get("detail_3") or None),
+                    )
+                )
+                count += 1
+    return count
+
+
 def load_etcd_encryption_status(session: Session) -> int:
     """Load etcd-encryption-status CSVs (OCP-14). Returns row count."""
     files = _find_csvs("etcd-encryption-status-*.csv")
@@ -884,6 +916,9 @@ def main() -> None:
 
         n = load_etcd_encryption_status(session)
         print(f"  -> etcd_encryption_status: {n} rows")
+
+        n = load_governance_policy_ecosystem(session)
+        print(f"  -> governance_policy_ecosystem: {n} rows")
 
         session.commit()
         print("Done -- all data committed.")
