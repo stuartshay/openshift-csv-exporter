@@ -9,6 +9,7 @@ from .cluster import Cluster, ClusterEnv
 from .configuration import (
     CICDPipelineDetection,
     ControlPlaneProtection,
+    EtcdEncryptionStatus,
     PatchLifecycleCheck,
     PlatformGuardrail,
     PolicyAsCodeConstraint,
@@ -51,6 +52,7 @@ __all__ = [
     "ClusterRoleRuleResource",
     "ClusterRoleRuleVerb",
     "ControlPlaneProtection",
+    "EtcdEncryptionStatus",
     "CredentialManagementSecret",
     "DisasterRecoveryBackup",
     "OAuthExternalAuth",

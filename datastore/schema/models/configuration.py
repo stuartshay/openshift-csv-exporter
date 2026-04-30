@@ -1,4 +1,4 @@
-"""Configuration & Hardening audit areas (OCP-6 through OCP-10)."""
+"""Configuration & Hardening audit areas (OCP-6 through OCP-14)."""
 
 from sqlalchemy import ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -122,3 +122,29 @@ class PatchLifecycleCheck(Base):
     details: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     cluster = relationship("Cluster", back_populates="patch_lifecycle_checks")
+
+
+class EtcdEncryptionStatus(Base):
+    """OCP-14: one row per etcd encryption-at-rest status record.
+
+    The export emits a cluster-level APIServer encryption config row plus
+    operator status / encryption condition rows for kube-apiserver and
+    openshift-apiserver.
+    """
+
+    __tablename__ = "etcd_encryption_status"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    cluster_id: Mapped[int] = mapped_column(Integer, ForeignKey("clusters.id", ondelete="CASCADE"), nullable=False)
+    record_type: Mapped[str | None] = mapped_column(String, nullable=True)
+    resource_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    encryption_type: Mapped[str | None] = mapped_column(String, nullable=True)
+    encryption_enabled: Mapped[bool | None] = mapped_column(nullable=True)
+    condition_available: Mapped[bool | None] = mapped_column(nullable=True)
+    condition_degraded: Mapped[bool | None] = mapped_column(nullable=True)
+    condition_progressing: Mapped[bool | None] = mapped_column(nullable=True)
+    condition_type: Mapped[str | None] = mapped_column(String, nullable=True)
+    condition_reason: Mapped[str | None] = mapped_column(String, nullable=True)
+    message: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    cluster = relationship("Cluster", back_populates="etcd_encryption_status_records")

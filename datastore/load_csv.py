@@ -12,6 +12,7 @@ the normalised schema.  Each loader function handles one report type:
 - ``worker-node-auth-*.csv``      -> worker_node_auth
 - ``credential-management-*.csv`` -> credential_management_secrets
 - ``cluster-admin-bindings-*.csv`` -> cluster_admin_bindings
+- ``etcd-encryption-status-*.csv`` -> etcd_encryption_status
 """
 
 from __future__ import annotations
@@ -40,6 +41,7 @@ from schema.models import (
     ControlPlaneProtection,
     CredentialManagementSecret,
     DisasterRecoveryBackup,
+    EtcdEncryptionStatus,
     OAuthExternalAuth,
     OlmGovernance,
     PatchLifecycleCheck,
@@ -777,6 +779,39 @@ def load_olm_governance(session: Session) -> int:
     return count
 
 
+def load_etcd_encryption_status(session: Session) -> int:
+    """Load etcd-encryption-status CSVs (OCP-14). Returns row count."""
+    files = _find_csvs("etcd-encryption-status-*.csv")
+    count = 0
+    for filepath in files:
+        print(f"  Loading {Path(filepath).name}")
+        with open(filepath, newline="") as f:
+            for row in csv.DictReader(f):
+                cluster = _get_or_create_cluster(
+                    session,
+                    row["cluster_name"],
+                    row["cluster_context"],
+                    row["cluster_server"],
+                )
+                session.add(
+                    EtcdEncryptionStatus(
+                        cluster_id=cluster.id,
+                        record_type=(row.get("record_type") or None),
+                        resource_name=(row.get("resource_name") or None),
+                        encryption_type=(row.get("encryption_type") or None),
+                        encryption_enabled=_to_bool(row.get("encryption_enabled", "")),
+                        condition_available=_to_bool(row.get("condition_available", "")),
+                        condition_degraded=_to_bool(row.get("condition_degraded", "")),
+                        condition_progressing=_to_bool(row.get("condition_progressing", "")),
+                        condition_type=(row.get("condition_type") or None),
+                        condition_reason=(row.get("condition_reason") or None),
+                        message=(row.get("message") or None),
+                    )
+                )
+                count += 1
+    return count
+
+
 # -- Main -------------------------------------------------------------------
 
 
@@ -846,6 +881,9 @@ def main() -> None:
 
         n = load_olm_governance(session)
         print(f"  -> olm_governance: {n} rows")
+
+        n = load_etcd_encryption_status(session)
+        print(f"  -> etcd_encryption_status: {n} rows")
 
         session.commit()
         print("Done -- all data committed.")

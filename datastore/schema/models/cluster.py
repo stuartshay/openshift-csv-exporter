@@ -30,6 +30,7 @@ class Cluster(Base):
     policy_as_code_constraints = relationship("PolicyAsCodeConstraint", back_populates="cluster")
     cicd_pipeline_detections = relationship("CICDPipelineDetection", back_populates="cluster")
     control_plane_protections = relationship("ControlPlaneProtection", back_populates="cluster")
+    etcd_encryption_status_records = relationship("EtcdEncryptionStatus", back_populates="cluster")
     patch_lifecycle_checks = relationship("PatchLifecycleCheck", back_populates="cluster")
     secrets_cert_rotations = relationship("SecretsCertRotation", back_populates="cluster")
     disaster_recovery_backups = relationship("DisasterRecoveryBackup", back_populates="cluster")
