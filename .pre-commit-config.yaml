@@ -56,3 +56,9 @@ repos:
       - id: nbqa-ruff
         args: ["--fix", "--extend-ignore=E402"]
         files: ^notebook/.*\.ipynb$
+      - id: nbqa-pylint
+        args:
+          - "--disable=C0103,C0114,C0115,C0116,C0121,C0301,C0413,W0104,W0106,W0621,W0703,W1514,E0401,R0801,R0914,R1714"
+          - "--additional-builtins=display,get_ipython"
+        additional_dependencies: ["pylint"]
+        files: ^notebook/.*\.ipynb$
