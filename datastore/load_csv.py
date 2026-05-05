@@ -38,11 +38,13 @@ from schema.models import (
     ClusterRoleRuleNonResourceUrl,
     ClusterRoleRuleResource,
     ClusterRoleRuleVerb,
+    ConfigurationDriftStatus,
     ControlPlaneProtection,
     CredentialManagementSecret,
     DisasterRecoveryBackup,
     EtcdEncryptionStatus,
     GovernancePolicyEcosystem,
+    MonitoringAuditLogging,
     OAuthExternalAuth,
     OlmGovernance,
     PatchLifecycleCheck,
@@ -844,6 +846,68 @@ def load_etcd_encryption_status(session: Session) -> int:
     return count
 
 
+def load_monitoring_audit_logging(session: Session) -> int:
+    """Load monitoring-audit-logging CSVs (OCP-24/26). Returns row count."""
+    files = _find_csvs("monitoring-audit-logging-*.csv")
+    count = 0
+    for filepath in files:
+        print(f"  Loading {Path(filepath).name}")
+        with open(filepath, newline="") as f:
+            for row in csv.DictReader(f):
+                cluster = _get_or_create_cluster(
+                    session,
+                    row["cluster_name"],
+                    row["cluster_context"],
+                    row["cluster_server"],
+                )
+                session.add(
+                    MonitoringAuditLogging(
+                        cluster_id=cluster.id,
+                        record_type=(row.get("record_type") or None),
+                        component_name=(row.get("component_name") or None),
+                        status=(row.get("status") or None),
+                        namespace=(row.get("namespace") or None),
+                        detail_1=(row.get("detail_1") or None),
+                        detail_2=(row.get("detail_2") or None),
+                        detail_3=(row.get("detail_3") or None),
+                        detail_4=(row.get("detail_4") or None),
+                    )
+                )
+                count += 1
+    return count
+
+
+def load_configuration_drift_status(session: Session) -> int:
+    """Load configuration-drift-status CSVs (OCP-25). Returns row count."""
+    files = _find_csvs("configuration-drift-status-*.csv")
+    count = 0
+    for filepath in files:
+        print(f"  Loading {Path(filepath).name}")
+        with open(filepath, newline="") as f:
+            for row in csv.DictReader(f):
+                cluster = _get_or_create_cluster(
+                    session,
+                    row["cluster_name"],
+                    row["cluster_context"],
+                    row["cluster_server"],
+                )
+                session.add(
+                    ConfigurationDriftStatus(
+                        cluster_id=cluster.id,
+                        record_type=(row.get("record_type") or None),
+                        component_name=(row.get("component_name") or None),
+                        status=(row.get("status") or None),
+                        namespace=(row.get("namespace") or None),
+                        detail_1=(row.get("detail_1") or None),
+                        detail_2=(row.get("detail_2") or None),
+                        detail_3=(row.get("detail_3") or None),
+                        detail_4=(row.get("detail_4") or None),
+                    )
+                )
+                count += 1
+    return count
+
+
 # -- Main -------------------------------------------------------------------
 
 
@@ -919,6 +983,12 @@ def main() -> None:
 
         n = load_governance_policy_ecosystem(session)
         print(f"  -> governance_policy_ecosystem: {n} rows")
+
+        n = load_monitoring_audit_logging(session)
+        print(f"  -> monitoring_audit_logging: {n} rows")
+
+        n = load_configuration_drift_status(session)
+        print(f"  -> configuration_drift_status: {n} rows")
 
         session.commit()
         print("Done -- all data committed.")

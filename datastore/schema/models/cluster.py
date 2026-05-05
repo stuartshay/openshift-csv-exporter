@@ -36,6 +36,8 @@ class Cluster(Base):
     disaster_recovery_backups = relationship("DisasterRecoveryBackup", back_populates="cluster")
     olm_governance = relationship("OlmGovernance", back_populates="cluster")
     governance_policy_ecosystem = relationship("GovernancePolicyEcosystem", back_populates="cluster")
+    monitoring_audit_logging_records = relationship("MonitoringAuditLogging", back_populates="cluster")
+    configuration_drift_status_records = relationship("ConfigurationDriftStatus", back_populates="cluster")
 
 
 class ClusterEnv(Base):

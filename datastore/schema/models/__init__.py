@@ -16,6 +16,7 @@ from .configuration import (
     PolicyAsCodeConstraint,
 )
 from .credentials import ClusterAdminBinding, CredentialManagementSecret
+from .monitoring import ConfigurationDriftStatus, MonitoringAuditLogging
 from .oauth import OAuthExternalAuth
 from .operations import (
     DisasterRecoveryBackup,
@@ -52,11 +53,13 @@ __all__ = [
     "ClusterRoleRuleNonResourceUrl",
     "ClusterRoleRuleResource",
     "ClusterRoleRuleVerb",
+    "ConfigurationDriftStatus",
     "ControlPlaneProtection",
     "EtcdEncryptionStatus",
     "GovernancePolicyEcosystem",
     "CredentialManagementSecret",
     "DisasterRecoveryBackup",
+    "MonitoringAuditLogging",
     "OAuthExternalAuth",
     "OlmGovernance",
     "PatchLifecycleCheck",
