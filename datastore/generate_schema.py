@@ -30,6 +30,7 @@ from schema.models import (  # noqa: F401
     PolicyAsCodeConstraint,
     SelfProvisionerBinding,
     SelfProvisionerSubject,
+    VulnerabilityRuntimeDetection,
 )
 
 

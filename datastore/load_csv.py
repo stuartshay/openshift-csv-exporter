@@ -53,6 +53,7 @@ from schema.models import (
     SecretsCertRotation,
     SelfProvisionerBinding,
     SelfProvisionerSubject,
+    VulnerabilityRuntimeDetection,
     WorkerNodeAuth,
 )
 from sqlalchemy.orm import Session
@@ -908,6 +909,37 @@ def load_configuration_drift_status(session: Session) -> int:
     return count
 
 
+def load_vulnerability_runtime_detection(session: Session) -> int:
+    """Load vulnerability-runtime-detection CSVs (OCP-28/29). Returns row count."""
+    files = _find_csvs("vulnerability-runtime-detection-*.csv")
+    count = 0
+    for filepath in files:
+        print(f"  Loading {Path(filepath).name}")
+        with open(filepath, newline="") as f:
+            for row in csv.DictReader(f):
+                cluster = _get_or_create_cluster(
+                    session,
+                    row["cluster_name"],
+                    row["cluster_context"],
+                    row["cluster_server"],
+                )
+                session.add(
+                    VulnerabilityRuntimeDetection(
+                        cluster_id=cluster.id,
+                        record_type=(row.get("record_type") or None),
+                        component_name=(row.get("component_name") or None),
+                        status=(row.get("status") or None),
+                        namespace=(row.get("namespace") or None),
+                        detail_1=(row.get("detail_1") or None),
+                        detail_2=(row.get("detail_2") or None),
+                        detail_3=(row.get("detail_3") or None),
+                        detail_4=(row.get("detail_4") or None),
+                    )
+                )
+                count += 1
+    return count
+
+
 # -- Main -------------------------------------------------------------------
 
 
@@ -989,6 +1021,9 @@ def main() -> None:
 
         n = load_configuration_drift_status(session)
         print(f"  -> configuration_drift_status: {n} rows")
+
+        n = load_vulnerability_runtime_detection(session)
+        print(f"  -> vulnerability_runtime_detection: {n} rows")
 
         session.commit()
         print("Done -- all data committed.")

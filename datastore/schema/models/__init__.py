@@ -16,7 +16,7 @@ from .configuration import (
     PolicyAsCodeConstraint,
 )
 from .credentials import ClusterAdminBinding, CredentialManagementSecret
-from .monitoring import ConfigurationDriftStatus, MonitoringAuditLogging
+from .monitoring import ConfigurationDriftStatus, MonitoringAuditLogging, VulnerabilityRuntimeDetection
 from .oauth import OAuthExternalAuth
 from .operations import (
     DisasterRecoveryBackup,
@@ -69,4 +69,5 @@ __all__ = [
     "SelfProvisionerBinding",
     "SelfProvisionerSubject",
     "WorkerNodeAuth",
+    "VulnerabilityRuntimeDetection",
 ]

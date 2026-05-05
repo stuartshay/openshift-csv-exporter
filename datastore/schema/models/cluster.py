@@ -38,6 +38,7 @@ class Cluster(Base):
     governance_policy_ecosystem = relationship("GovernancePolicyEcosystem", back_populates="cluster")
     monitoring_audit_logging_records = relationship("MonitoringAuditLogging", back_populates="cluster")
     configuration_drift_status_records = relationship("ConfigurationDriftStatus", back_populates="cluster")
+    vulnerability_runtime_detection_records = relationship("VulnerabilityRuntimeDetection", back_populates="cluster")
 
 
 class ClusterEnv(Base):
