@@ -18,18 +18,24 @@ ignore-paths = [
 ]
 
 [tool.pylint."messages control"]
-# line-too-long (C0301) — disabled repo-wide.
-# broad-except (W0703) — intentional in bootstrap/reset code paths.
-# unspecified-encoding (W1514) — CSV files are ASCII/UTF-8; not enforced.
-# import-error (E0401) — Pylint runs without venv; imports are exercised at runtime.
+# line-too-long — disabled repo-wide.
+# broad-except — intentional in bootstrap/reset code paths.
+# unspecified-encoding — CSV files are ASCII/UTF-8; not enforced.
+# import-error — Pylint runs without venv; imports are exercised at runtime.
+# not-callable — false positives on SQLAlchemy ``func.*`` accessors.
+# invalid-name — notebooks use short/snake_case locals at module level (the
+#   implicit ``__main__`` scope of a notebook); pylint otherwise requires
+#   UPPER_CASE for any top-level assignment.
 disable = [
-    "C0301",
-    "W0703",
-    "W1514",
-    "E0401",
-    "C0114",  # missing-module-docstring
-    "C0115",  # missing-class-docstring
-    "C0116",  # missing-function-docstring
+    "line-too-long",
+    "broad-except",
+    "unspecified-encoding",
+    "import-error",
+    "not-callable",
+    "invalid-name",
+    "missing-module-docstring",
+    "missing-class-docstring",
+    "missing-function-docstring",
 ]
 
 [tool.pydocstyle]

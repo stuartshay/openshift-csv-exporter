@@ -1,5 +1,20 @@
+# Runtime dependencies for the notebook kernels.
 sqlalchemy>=2.0
 pandas
 jinja2
 ipykernel
 ipywidgets
+
+# Development tooling used by the VS Code Python/Pylint/Flake8/Mypy/Pydocstyle
+# extensions (configured via `.vscode/settings.json`) and by `pre-commit`'s
+# nbqa hooks when re-linting locally. Installing these into `.venv` lets the
+# editor match the versions used in CI and recognise every message ID listed in
+# `pyproject.toml` (e.g. `import-error`, `not-callable`).
+pylint>=3.0
+flake8>=6.0
+mypy>=1.8
+pydocstyle>=6.3
+black>=24.0
+isort>=5.13
+ruff>=0.11
+nbqa>=1.9

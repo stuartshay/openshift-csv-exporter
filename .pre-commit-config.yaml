@@ -23,6 +23,26 @@ repos:
       - id: markdownlint
         args: ["--fix"]
 
+  - repo: https://github.com/streetsidesoftware/cspell-cli
+    rev: v10.0.0
+    hooks:
+      - id: cspell
+        name: cspell (project spell-check)
+        args: ["--no-progress", "--no-summary", "--no-must-find-files"]
+        # Scope the check to human-readable sources; avoid binary / generated
+        # artefacts such as the compiled SQLite DB.
+        files: \.(md|sh|py|ipynb|txt|json|ya?ml|toml)$
+        exclude: |
+          (?x)^(
+              \.venv/.*|
+              .*/__pycache__/.*|
+              datastore/data/.*|
+              datastore/input/.*|
+              output/.*|
+              notebook/.*\.ipynb$
+          )$
+
+
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.24.0
     hooks:

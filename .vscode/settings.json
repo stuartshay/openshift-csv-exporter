@@ -22,19 +22,30 @@
     "reportMissingTypeStubs": "none",
     "reportMissingImports": "none"
   },
+  "pylint.importStrategy": "fromEnvironment",
   "pylint.args": [
-    "--disable=C0301,line-too-long,W0703,broad-except,W1514,unspecified-encoding,E0401,import-error,C0114,missing-module-docstring,C0115,missing-class-docstring,C0116,missing-function-docstring",
-    "--ignore-paths=^.*\\.venv/.*$"
+    "--disable=line-too-long,broad-except,unspecified-encoding,missing-module-docstring,missing-class-docstring,missing-function-docstring,import-error,not-callable,invalid-name",
+    "--ignore-paths=^.*\\.venv/.*$",
+    "--ignore-patterns=.*\\.ipynb$"
+  ],
+  "pylint.ignorePatterns": [
+    ".*\\.ipynb$"
   ],
   "pydocstyle.args": [
-    "--add-ignore=D100,D101,D102,D103,D104,D105,D106,D107"
+    "--add-ignore=D100,D101,D102,D103,D104,D105,D106,D107",
+    "--match=(?!.*\\.ipynb).*\\.py"
   ],
   "mypy-type-checker.args": [
-    "--ignore-missing-imports"
+    "--ignore-missing-imports",
+    "--exclude=.*\\.ipynb$"
   ],
   "flake8.args": [
     "--max-line-length=999",
-    "--extend-ignore=E501"
+    "--extend-ignore=E501",
+    "--exclude=*.ipynb,.venv,__pycache__"
+  ],
+  "flake8.ignorePatterns": [
+    ".*\\.ipynb$"
   ],
   "[python]": {
     "editor.defaultFormatter": "charliermarsh.ruff",
