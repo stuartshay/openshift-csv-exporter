@@ -39,6 +39,8 @@ class Cluster(Base):
     monitoring_audit_logging_records = relationship("MonitoringAuditLogging", back_populates="cluster")
     configuration_drift_status_records = relationship("ConfigurationDriftStatus", back_populates="cluster")
     vulnerability_runtime_detection_records = relationship("VulnerabilityRuntimeDetection", back_populates="cluster")
+    network_security_mesh_records = relationship("NetworkSecurityMesh", back_populates="cluster")
+    ingress_boundary_protection_records = relationship("IngressBoundaryProtection", back_populates="cluster")
 
 
 class ClusterEnv(Base):

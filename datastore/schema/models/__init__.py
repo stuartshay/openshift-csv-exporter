@@ -17,6 +17,7 @@ from .configuration import (
 )
 from .credentials import ClusterAdminBinding, CredentialManagementSecret
 from .monitoring import ConfigurationDriftStatus, MonitoringAuditLogging, VulnerabilityRuntimeDetection
+from .network import IngressBoundaryProtection, NetworkSecurityMesh
 from .oauth import OAuthExternalAuth
 from .operations import (
     DisasterRecoveryBackup,
@@ -59,7 +60,9 @@ __all__ = [
     "GovernancePolicyEcosystem",
     "CredentialManagementSecret",
     "DisasterRecoveryBackup",
+    "IngressBoundaryProtection",
     "MonitoringAuditLogging",
+    "NetworkSecurityMesh",
     "OAuthExternalAuth",
     "OlmGovernance",
     "PatchLifecycleCheck",

@@ -44,7 +44,9 @@ from schema.models import (
     DisasterRecoveryBackup,
     EtcdEncryptionStatus,
     GovernancePolicyEcosystem,
+    IngressBoundaryProtection,
     MonitoringAuditLogging,
+    NetworkSecurityMesh,
     OAuthExternalAuth,
     OlmGovernance,
     PatchLifecycleCheck,
@@ -940,6 +942,68 @@ def load_vulnerability_runtime_detection(session: Session) -> int:
     return count
 
 
+def load_network_security_mesh(session: Session) -> int:
+    """Load network-security-mesh CSVs (OCP-30/31/32). Returns row count."""
+    files = _find_csvs("network-security-mesh-*.csv")
+    count = 0
+    for filepath in files:
+        print(f"  Loading {Path(filepath).name}")
+        with open(filepath, newline="") as f:
+            for row in csv.DictReader(f):
+                cluster = _get_or_create_cluster(
+                    session,
+                    row["cluster_name"],
+                    row["cluster_context"],
+                    row["cluster_server"],
+                )
+                session.add(
+                    NetworkSecurityMesh(
+                        cluster_id=cluster.id,
+                        record_type=(row.get("record_type") or None),
+                        component_name=(row.get("component_name") or None),
+                        status=(row.get("status") or None),
+                        namespace=(row.get("namespace") or None),
+                        detail_1=(row.get("detail_1") or None),
+                        detail_2=(row.get("detail_2") or None),
+                        detail_3=(row.get("detail_3") or None),
+                        detail_4=(row.get("detail_4") or None),
+                    )
+                )
+                count += 1
+    return count
+
+
+def load_ingress_boundary_protection(session: Session) -> int:
+    """Load ingress-boundary-protection CSVs (OCP-30 / boundary protection). Returns row count."""
+    files = _find_csvs("ingress-boundary-protection-*.csv")
+    count = 0
+    for filepath in files:
+        print(f"  Loading {Path(filepath).name}")
+        with open(filepath, newline="") as f:
+            for row in csv.DictReader(f):
+                cluster = _get_or_create_cluster(
+                    session,
+                    row["cluster_name"],
+                    row["cluster_context"],
+                    row["cluster_server"],
+                )
+                session.add(
+                    IngressBoundaryProtection(
+                        cluster_id=cluster.id,
+                        record_type=(row.get("record_type") or None),
+                        component_name=(row.get("component_name") or None),
+                        status=(row.get("status") or None),
+                        namespace=(row.get("namespace") or None),
+                        detail_1=(row.get("detail_1") or None),
+                        detail_2=(row.get("detail_2") or None),
+                        detail_3=(row.get("detail_3") or None),
+                        detail_4=(row.get("detail_4") or None),
+                    )
+                )
+                count += 1
+    return count
+
+
 # -- Main -------------------------------------------------------------------
 
 
@@ -1024,6 +1088,12 @@ def main() -> None:
 
         n = load_vulnerability_runtime_detection(session)
         print(f"  -> vulnerability_runtime_detection: {n} rows")
+
+        n = load_network_security_mesh(session)
+        print(f"  -> network_security_mesh: {n} rows")
+
+        n = load_ingress_boundary_protection(session)
+        print(f"  -> ingress_boundary_protection: {n} rows")
 
         session.commit()
         print("Done -- all data committed.")
