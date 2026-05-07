@@ -25,6 +25,7 @@ from .operations import (
     SecretsCertRotation,
 )
 from .overview import ClusterOverview
+from .workload import SccPrivileged, WorkloadResourceQuota
 from .rbac import (
     ClusterRole,
     ClusterRoleBinding,
@@ -68,9 +69,11 @@ __all__ = [
     "PatchLifecycleCheck",
     "PlatformGuardrail",
     "PolicyAsCodeConstraint",
+    "SccPrivileged",
     "SecretsCertRotation",
     "SelfProvisionerBinding",
     "SelfProvisionerSubject",
     "WorkerNodeAuth",
+    "WorkloadResourceQuota",
     "VulnerabilityRuntimeDetection",
 ]

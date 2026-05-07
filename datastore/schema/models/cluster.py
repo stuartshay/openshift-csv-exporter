@@ -41,6 +41,8 @@ class Cluster(Base):
     vulnerability_runtime_detection_records = relationship("VulnerabilityRuntimeDetection", back_populates="cluster")
     network_security_mesh_records = relationship("NetworkSecurityMesh", back_populates="cluster")
     ingress_boundary_protection_records = relationship("IngressBoundaryProtection", back_populates="cluster")
+    scc_privileged_records = relationship("SccPrivileged", back_populates="cluster")
+    workload_resource_quota_records = relationship("WorkloadResourceQuota", back_populates="cluster")
 
 
 class ClusterEnv(Base):

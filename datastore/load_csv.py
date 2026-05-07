@@ -52,11 +52,13 @@ from schema.models import (
     PatchLifecycleCheck,
     PlatformGuardrail,
     PolicyAsCodeConstraint,
+    SccPrivileged,
     SecretsCertRotation,
     SelfProvisionerBinding,
     SelfProvisionerSubject,
     VulnerabilityRuntimeDetection,
     WorkerNodeAuth,
+    WorkloadResourceQuota,
 )
 from sqlalchemy.orm import Session
 
@@ -1007,6 +1009,84 @@ def load_ingress_boundary_protection(session: Session) -> int:
 # -- Main -------------------------------------------------------------------
 
 
+def load_scc_privileged(session: Session) -> int:
+    """Load scc-privileged CSVs (OCP-39 / OCP-40). Returns row count."""
+    files = _find_csvs("scc-privileged-*.csv")
+    count = 0
+    for filepath in files:
+        print(f"  Loading {Path(filepath).name}")
+        with open(filepath, newline="") as f:
+            for row in csv.DictReader(f):
+                cluster = _get_or_create_cluster(
+                    session,
+                    row["cluster_name"],
+                    row["cluster_context"],
+                    row["cluster_server"],
+                )
+                session.add(
+                    SccPrivileged(
+                        cluster_id=cluster.id,
+                        name=(row.get("name") or None),
+                        priority=(row.get("priority") or None),
+                        allow_privileged_container=(row.get("allow_privileged_container") or None),
+                        default_add_capabilities=(row.get("default_add_capabilities") or None),
+                        required_drop_capabilities=(row.get("required_drop_capabilities") or None),
+                        allowed_capabilities=(row.get("allowed_capabilities") or None),
+                        allow_host_network=(row.get("allow_host_network") or None),
+                        allow_host_ports=(row.get("allow_host_ports") or None),
+                        allow_host_pid=(row.get("allow_host_pid") or None),
+                        allow_host_ipc=(row.get("allow_host_ipc") or None),
+                        read_only_root_filesystem=(row.get("read_only_root_filesystem") or None),
+                        run_as_user_type=(row.get("run_as_user_type") or None),
+                        se_linux_context_type=(row.get("se_linux_context_type") or None),
+                        fs_group_type=(row.get("fs_group_type") or None),
+                        supplemental_groups_type=(row.get("supplemental_groups_type") or None),
+                        volumes=(row.get("volumes") or None),
+                        allow_privilege_escalation=(row.get("allow_privilege_escalation") or None),
+                        users_count=_to_int(row.get("users_count", "")),
+                        groups_count=_to_int(row.get("groups_count", "")),
+                        users=(row.get("users") or None),
+                        groups=(row.get("groups") or None),
+                    )
+                )
+                count += 1
+    return count
+
+
+def load_workload_resource_quotas(session: Session) -> int:
+    """Load workload-resource-quotas CSVs (OCP-41). Returns row count."""
+    files = _find_csvs("workload-resource-quotas-*.csv")
+    count = 0
+    for filepath in files:
+        print(f"  Loading {Path(filepath).name}")
+        with open(filepath, newline="") as f:
+            for row in csv.DictReader(f):
+                cluster = _get_or_create_cluster(
+                    session,
+                    row["cluster_name"],
+                    row["cluster_context"],
+                    row["cluster_server"],
+                )
+                session.add(
+                    WorkloadResourceQuota(
+                        cluster_id=cluster.id,
+                        record_type=(row.get("record_type") or None),
+                        namespace=(row.get("namespace") or None),
+                        name=(row.get("name") or None),
+                        resource_key=(row.get("resource_key") or None),
+                        hard_limit=(row.get("hard_limit") or None),
+                        used=(row.get("used") or None),
+                        limit_type=(row.get("limit_type") or None),
+                        default_value=(row.get("default_value") or None),
+                        default_request=(row.get("default_request") or None),
+                        max_value=(row.get("max_value") or None),
+                        min_value=(row.get("min_value") or None),
+                    )
+                )
+                count += 1
+    return count
+
+
 def main() -> None:
     data_path = os.path.abspath(DATA_DIR)
     if not os.path.isdir(data_path):
@@ -1094,6 +1174,12 @@ def main() -> None:
 
         n = load_ingress_boundary_protection(session)
         print(f"  -> ingress_boundary_protection: {n} rows")
+
+        n = load_scc_privileged(session)
+        print(f"  -> scc_privileged: {n} rows")
+
+        n = load_workload_resource_quotas(session)
+        print(f"  -> workload_resource_quotas: {n} rows")
 
         session.commit()
         print("Done -- all data committed.")
