@@ -1,5 +1,7 @@
 """Workload & Application Security audit areas (OCP-39 Container Least Privilege,
-OCP-40 SCC Enforcement, OCP-41 Workload Resource Quotas)."""
+OCP-40 SCC Enforcement, OCP-41 Workload Resource Quotas, OCP-42 Trusted Image
+Enforcement, OCP-43 Pod Security Admission, OCP-45 Logical Project Isolation,
+OCP-46 Encryption at Rest, OCP-47 Image Signing & Verification)."""
 
 from sqlalchemy import ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -130,3 +132,81 @@ class PodSecurityAdmission(Base):
     warn_version: Mapped[str | None] = mapped_column(String, nullable=True)
 
     cluster = relationship("Cluster", back_populates="pod_security_admission_records")
+
+
+class LogicalProjectIsolation(Base):
+    """OCP-45: per-namespace logical isolation evidence.
+
+    One row per namespace. Captures whether a default-deny NetworkPolicy
+    is present, ResourceQuota / LimitRange enforcement, an ownership
+    label, and counts of RoleBindings and distinct ServiceAccounts so
+    notebooks can verify each user namespace is genuinely isolated.
+    """
+
+    __tablename__ = "logical_project_isolation"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    cluster_id: Mapped[int] = mapped_column(Integer, ForeignKey("clusters.id", ondelete="CASCADE"), nullable=False)
+    namespace: Mapped[str | None] = mapped_column(String, nullable=True)
+    is_system_namespace: Mapped[str | None] = mapped_column(String, nullable=True)
+    has_default_deny_netpol: Mapped[str | None] = mapped_column(String, nullable=True)
+    netpol_count: Mapped[str | None] = mapped_column(String, nullable=True)
+    has_resourcequota: Mapped[str | None] = mapped_column(String, nullable=True)
+    has_limitrange: Mapped[str | None] = mapped_column(String, nullable=True)
+    has_owner_label: Mapped[str | None] = mapped_column(String, nullable=True)
+    rolebinding_count: Mapped[str | None] = mapped_column(String, nullable=True)
+    distinct_serviceaccounts: Mapped[str | None] = mapped_column(String, nullable=True)
+
+    cluster = relationship("Cluster", back_populates="logical_project_isolation_records")
+
+
+class EncryptionAtRest(Base):
+    """OCP-46: cluster encryption-at-rest posture.
+
+    ``record_type`` is one of ``etcd_encryption`` (cluster-scoped),
+    ``storage_class``, ``machine_config_luks`` (LUKS / Tang / Clevis),
+    or ``persistent_volume``. The ``detail_*`` columns carry record-type-
+    specific evidence — see ``scripts/README.md``.
+    """
+
+    __tablename__ = "encryption_at_rest"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    cluster_id: Mapped[int] = mapped_column(Integer, ForeignKey("clusters.id", ondelete="CASCADE"), nullable=False)
+    record_type: Mapped[str | None] = mapped_column(String, nullable=True)
+    name: Mapped[str | None] = mapped_column(String, nullable=True)
+    namespace: Mapped[str | None] = mapped_column(String, nullable=True)
+    detail_1: Mapped[str | None] = mapped_column(String, nullable=True)
+    detail_2: Mapped[str | None] = mapped_column(String, nullable=True)
+    detail_3: Mapped[str | None] = mapped_column(String, nullable=True)
+    detail_4: Mapped[str | None] = mapped_column(String, nullable=True)
+    detail_5: Mapped[str | None] = mapped_column(String, nullable=True)
+    detail_6: Mapped[str | None] = mapped_column(String, nullable=True)
+
+    cluster = relationship("Cluster", back_populates="encryption_at_rest_records")
+
+
+class ImageSigningVerification(Base):
+    """OCP-47: image signing & verification posture.
+
+    ``record_type`` is one of ``cluster_image_policy_signature``,
+    ``build_config``, ``tekton_signing_task``, or
+    ``registry_signature_config``. The ``detail_*`` columns carry
+    record-type-specific evidence — see ``scripts/README.md``.
+    """
+
+    __tablename__ = "image_signing_verification"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    cluster_id: Mapped[int] = mapped_column(Integer, ForeignKey("clusters.id", ondelete="CASCADE"), nullable=False)
+    record_type: Mapped[str | None] = mapped_column(String, nullable=True)
+    name: Mapped[str | None] = mapped_column(String, nullable=True)
+    namespace: Mapped[str | None] = mapped_column(String, nullable=True)
+    detail_1: Mapped[str | None] = mapped_column(String, nullable=True)
+    detail_2: Mapped[str | None] = mapped_column(String, nullable=True)
+    detail_3: Mapped[str | None] = mapped_column(String, nullable=True)
+    detail_4: Mapped[str | None] = mapped_column(String, nullable=True)
+    detail_5: Mapped[str | None] = mapped_column(String, nullable=True)
+    detail_6: Mapped[str | None] = mapped_column(String, nullable=True)
+
+    cluster = relationship("Cluster", back_populates="image_signing_verification_records")

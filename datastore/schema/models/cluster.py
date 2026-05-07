@@ -45,6 +45,9 @@ class Cluster(Base):
     workload_resource_quota_records = relationship("WorkloadResourceQuota", back_populates="cluster")
     trusted_image_enforcement_records = relationship("TrustedImageEnforcement", back_populates="cluster")
     pod_security_admission_records = relationship("PodSecurityAdmission", back_populates="cluster")
+    logical_project_isolation_records = relationship("LogicalProjectIsolation", back_populates="cluster")
+    encryption_at_rest_records = relationship("EncryptionAtRest", back_populates="cluster")
+    image_signing_verification_records = relationship("ImageSigningVerification", back_populates="cluster")
 
 
 class ClusterEnv(Base):

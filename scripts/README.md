@@ -679,6 +679,125 @@ Exports per-namespace Pod Security Admission (PSA) labels — the upstream Kuber
 
 ---
 
+### export-logical-project-isolation.sh
+
+Exports per-namespace isolation evidence — default-deny `NetworkPolicy`, `ResourceQuota`, `LimitRange`, ownership label, `RoleBinding` and `ServiceAccount` counts. Answers: **is every user namespace logically isolated from its peers? (OCP-45)**
+
+```bash
+./scripts/export-logical-project-isolation.sh
+```
+
+**OC commands:**
+
+- `oc get namespaces -o json`
+- `oc get networkpolicies -A -o json`
+- `oc get resourcequotas -A -o json`
+- `oc get limitranges -A -o json`
+- `oc get rolebindings -A -o json`
+- `oc get serviceaccounts -A -o json`
+
+**Output file:** `logical-project-isolation-<cluster>-<timestamp>.csv`
+
+| Column | Description |
+|---|---|
+| `namespace` | Namespace name |
+| `is_system_namespace` | `true` if name matches `openshift-*`, `kube-*`, or `default` |
+| `has_default_deny_netpol` | `true` if a `NetworkPolicy` with empty `podSelector` and a `policyTypes` entry of `Ingress` exists |
+| `netpol_count` | Total number of `NetworkPolicy` objects in the namespace |
+| `has_resourcequota` | `true` if at least one `ResourceQuota` exists |
+| `has_limitrange` | `true` if at least one `LimitRange` exists |
+| `has_owner_label` | `true` if the namespace carries `app.kubernetes.io/owner`, `owner`, `team`, or `app.kubernetes.io/managed-by` |
+| `rolebinding_count` | Number of project-scoped `RoleBinding` objects |
+| `distinct_serviceaccounts` | Count of unique `ServiceAccounts` in the namespace |
+
+**What auditors should look for:**
+
+- Every **user** namespace should have `has_default_deny_netpol=true` so that pods are isolated by default; a `NetworkPolicy` with `podSelector: {}` and `policyTypes: [Ingress]` is the standard implementation
+- `has_resourcequota=true` and `has_limitrange=true` prevent a single project from exhausting cluster resources
+- `has_owner_label=true` makes the namespace traceable to a team / cost center
+- A `rolebinding_count` of 0 on a user namespace usually indicates the project was created but never delegated — review whether it should still exist
+- System namespaces (`is_system_namespace=true`) are excluded from the verdict because OpenShift platform components legitimately share access there
+
+---
+
+### export-encryption-at-rest.sh
+
+Exports encryption-at-rest evidence: etcd encryption type, `StorageClass` encryption parameters, worker-node LUKS / Tang / Clevis MachineConfigs, and a sample of `PersistentVolumes` joined to their backing `StorageClass`. Answers: **is data on this cluster encrypted at rest end-to-end? (OCP-46)**
+
+```bash
+./scripts/export-encryption-at-rest.sh
+```
+
+**OC commands:**
+
+- `oc get apiserver.config.openshift.io cluster -o json`
+- `oc get storageclasses -o json`
+- `oc get machineconfigs -o json`
+- `oc get pv -o json`
+
+**Output file:** `encryption-at-rest-<cluster>-<timestamp>.csv`
+
+| Column | Description |
+|---|---|
+| `record_type` | `etcd_encryption`, `storage_class`, `machine_config_luks`, or `persistent_volume` |
+| `name` | Resource name (or `cluster` for the singleton etcd record) |
+| `namespace` | Namespace (PVCs only — empty for cluster-scoped resources) |
+| `detail_1` | etcd: encryption type (`identity`, `aescbc`, `aesgcm`); storage_class: provisioner; machine_config_luks: Tang URL; persistent_volume: backing `StorageClass` name |
+| `detail_2` | etcd: —; storage_class: `encrypted` parameter (`true` / `false`); machine_config_luks: Clevis pin type; persistent_volume: encrypted (joined from SC) |
+| `detail_3` | storage_class: KMS key reference; machine_config_luks: `true` (LUKS device present); persistent_volume: capacity |
+| `detail_4` | storage_class: `is_default` (`storageclass.kubernetes.io/is-default-class`); machine_config_luks: LUKS options; persistent_volume: access modes |
+| `detail_5` | etcd: encrypted resource list (`secrets;configmaps`); storage_class: reclaim policy |
+| `detail_6` | etcd: enabled flag; storage_class: volume binding mode |
+
+**What auditors should look for:**
+
+- The `etcd_encryption` row must show `detail_1` set to `aescbc` or `aesgcm` — the default `identity` value means etcd is **not** encrypted
+- The default `StorageClass` (`detail_4=true`) should have `detail_2=true` (`encrypted=true`) and ideally a KMS key in `detail_3`
+- At least one `machine_config_luks` row should be present, indicating LUKS / Tang or LUKS / TPM is configured for worker root volumes
+- Any `persistent_volume` rows with `detail_2=false` are bound to an unencrypted `StorageClass` — those PVs hold cleartext data on disk
+
+---
+
+### export-image-signing-verification.sh
+
+Exports image-signing evidence: `ClusterImagePolicy` / `ImagePolicy` signature requirements, `BuildConfig` push targets and signing hooks, Tekton tasks that invoke `cosign` / `notation` / `sigstore`, and registry sigstore signature stores from `image.config.openshift.io/cluster`. Answers: **does this cluster sign the images it produces and verify signatures before deployment? (OCP-47)**
+
+```bash
+./scripts/export-image-signing-verification.sh
+```
+
+**OC commands:**
+
+- `oc get clusterimagepolicies.config.openshift.io -o json`
+- `oc get imagepolicies.config.openshift.io -A -o json`
+- `oc get buildconfigs -A -o json`
+- `oc get tasks.tekton.dev -A -o json`
+- `oc get clustertasks.tekton.dev -o json`
+- `oc get image.config.openshift.io cluster -o json`
+
+**Output file:** `image-signing-verification-<cluster>-<timestamp>.csv`
+
+| Column | Description |
+|---|---|
+| `record_type` | `cluster_image_policy_signature`, `build_config`, `tekton_signing_task`, or `registry_signature_config` |
+| `name` | Resource name (or `(none)` if no `ClusterImagePolicy` is present) |
+| `namespace` | Namespace (cluster-scoped resources leave this empty) |
+| `detail_1` | policy: signature root type (`PublicKey`, `FulcioCAWithRekor`); build: strategy; tekton: kind (`Task` / `ClusterTask`); registry: registry hostname |
+| `detail_2` | policy: `signature_required` (`true` / `false`); build: output image; tekton: signing tool (`cosign` / `notation` / `sigstore`) |
+| `detail_3` | policy: `pubkey_present`; build: push secret; tekton: signing-key reference |
+| `detail_4` | policy: Rekor URL; build: `signing_enabled` (`true` / `false`) |
+| `detail_5` | policy: scopes (`;`-delimited); build: detected signing tool |
+
+**What auditors should look for:**
+
+- At least one `cluster_image_policy_signature` row should have `detail_2=true` (signature required) — this is what enforces verification at admission
+- Each policy row should have either `detail_3=true` (a public key is configured) **or** `detail_1=FulcioCAWithRekor` plus a Rekor URL in `detail_4`
+- At least one `build_config` row with `detail_4=true`, **or** at least one `tekton_signing_task` row, must be present — otherwise the cluster verifies signatures it never produces
+- `registry_signature_config` rows enumerate where the cluster fetches signatures from; missing entries on a cluster that requires signatures is a misconfiguration
+- A single `(none)` sentinel row for `cluster_image_policy_signature` means **no signature policies are defined** — the cluster will accept unsigned images
+
+---
+
 ### export-worker-node-auth.sh
 
 Exports worker node authentication and authorization enforcement status. Verifies that each node has its desired machine config applied and checks for any KubeletConfig overrides to default authentication/authorization settings.
@@ -1876,6 +1995,9 @@ DEBUG=true ./scripts/export-oauth-external-auth.sh
 | **Trusted Image Enforcement** | `export-trusted-image-enforcement.sh`, `export-governance-policy-ecosystem.sh` (image policy section), `export-vulnerability-runtime-detection.sh` |
 | **Pod Security Context** | `export-pod-security-admission.sh`, `export-scc-privileged.sh`, `export-shared-responsibility-model.sh` (PSA labels) |
 | **Runtime Security** | `export-vulnerability-runtime-detection.sh` |
+| **Logical Project Isolation** | `export-logical-project-isolation.sh`, `export-shared-responsibility-model.sh`, `export-network-security-mesh.sh` |
+| **Encryption at Rest** | `export-encryption-at-rest.sh`, `export-etcd-encryption-status.sh` |
+| **Image Signing & Verification** | `export-image-signing-verification.sh`, `export-trusted-image-enforcement.sh`, `export-cicd-pipeline-enforcement.sh` |
 | **Worker Node AuthN/AuthZ** | `export-worker-node-auth.sh` |
 | **Cluster Admin/SRE Credential Management** | `export-credential-management.sh`, `export-oauth-external-auth.sh` |
 | **Cluster Version & Health** | `export-clusterversion.sh`, `export-clusteroperators.sh` |

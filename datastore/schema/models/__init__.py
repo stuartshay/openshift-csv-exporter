@@ -39,6 +39,9 @@ from .rbac import (
 )
 from .worker_node import WorkerNodeAuth
 from .workload import (
+    EncryptionAtRest,
+    ImageSigningVerification,
+    LogicalProjectIsolation,
     PodSecurityAdmission,
     SccPrivileged,
     TrustedImageEnforcement,
@@ -66,7 +69,10 @@ __all__ = [
     "GovernancePolicyEcosystem",
     "CredentialManagementSecret",
     "DisasterRecoveryBackup",
+    "EncryptionAtRest",
+    "ImageSigningVerification",
     "IngressBoundaryProtection",
+    "LogicalProjectIsolation",
     "MonitoringAuditLogging",
     "NetworkSecurityMesh",
     "OAuthExternalAuth",

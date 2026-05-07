@@ -42,9 +42,12 @@ from schema.models import (
     ControlPlaneProtection,
     CredentialManagementSecret,
     DisasterRecoveryBackup,
+    EncryptionAtRest,
     EtcdEncryptionStatus,
     GovernancePolicyEcosystem,
+    ImageSigningVerification,
     IngressBoundaryProtection,
+    LogicalProjectIsolation,
     MonitoringAuditLogging,
     NetworkSecurityMesh,
     OAuthExternalAuth,
@@ -1149,6 +1152,102 @@ def load_pod_security_admission(session: Session) -> int:
     return count
 
 
+def load_logical_project_isolation(session: Session) -> int:
+    """Load logical-project-isolation CSVs (OCP-45). Returns row count."""
+    files = _find_csvs("logical-project-isolation-*.csv")
+    count = 0
+    for filepath in files:
+        print(f"  Loading {Path(filepath).name}")
+        with open(filepath, newline="") as f:
+            for row in csv.DictReader(f):
+                cluster = _get_or_create_cluster(
+                    session,
+                    row["cluster_name"],
+                    row["cluster_context"],
+                    row["cluster_server"],
+                )
+                session.add(
+                    LogicalProjectIsolation(
+                        cluster_id=cluster.id,
+                        namespace=(row.get("namespace") or None),
+                        is_system_namespace=(row.get("is_system_namespace") or None),
+                        has_default_deny_netpol=(row.get("has_default_deny_netpol") or None),
+                        netpol_count=(row.get("netpol_count") or None),
+                        has_resourcequota=(row.get("has_resourcequota") or None),
+                        has_limitrange=(row.get("has_limitrange") or None),
+                        has_owner_label=(row.get("has_owner_label") or None),
+                        rolebinding_count=(row.get("rolebinding_count") or None),
+                        distinct_serviceaccounts=(row.get("distinct_serviceaccounts") or None),
+                    )
+                )
+                count += 1
+    return count
+
+
+def load_encryption_at_rest(session: Session) -> int:
+    """Load encryption-at-rest CSVs (OCP-46). Returns row count."""
+    files = _find_csvs("encryption-at-rest-*.csv")
+    count = 0
+    for filepath in files:
+        print(f"  Loading {Path(filepath).name}")
+        with open(filepath, newline="") as f:
+            for row in csv.DictReader(f):
+                cluster = _get_or_create_cluster(
+                    session,
+                    row["cluster_name"],
+                    row["cluster_context"],
+                    row["cluster_server"],
+                )
+                session.add(
+                    EncryptionAtRest(
+                        cluster_id=cluster.id,
+                        record_type=(row.get("record_type") or None),
+                        name=(row.get("name") or None),
+                        namespace=(row.get("namespace") or None),
+                        detail_1=(row.get("detail_1") or None),
+                        detail_2=(row.get("detail_2") or None),
+                        detail_3=(row.get("detail_3") or None),
+                        detail_4=(row.get("detail_4") or None),
+                        detail_5=(row.get("detail_5") or None),
+                        detail_6=(row.get("detail_6") or None),
+                    )
+                )
+                count += 1
+    return count
+
+
+def load_image_signing_verification(session: Session) -> int:
+    """Load image-signing-verification CSVs (OCP-47). Returns row count."""
+    files = _find_csvs("image-signing-verification-*.csv")
+    count = 0
+    for filepath in files:
+        print(f"  Loading {Path(filepath).name}")
+        with open(filepath, newline="") as f:
+            for row in csv.DictReader(f):
+                cluster = _get_or_create_cluster(
+                    session,
+                    row["cluster_name"],
+                    row["cluster_context"],
+                    row["cluster_server"],
+                )
+                session.add(
+                    ImageSigningVerification(
+                        cluster_id=cluster.id,
+                        record_type=(row.get("record_type") or None),
+                        name=(row.get("name") or None),
+                        namespace=(row.get("namespace") or None),
+                        detail_1=(row.get("detail_1") or None),
+                        detail_2=(row.get("detail_2") or None),
+                        detail_3=(row.get("detail_3") or None),
+                        detail_4=(row.get("detail_4") or None),
+                        detail_5=(row.get("detail_5") or None),
+                        detail_6=(row.get("detail_6") or None),
+                    )
+                )
+                count += 1
+    return count
+
+
 # -- Main -------------------------------------------------------------------
 
 
@@ -1251,6 +1350,15 @@ def main() -> None:
 
         n = load_pod_security_admission(session)
         print(f"  -> pod_security_admission: {n} rows")
+
+        n = load_logical_project_isolation(session)
+        print(f"  -> logical_project_isolation: {n} rows")
+
+        n = load_encryption_at_rest(session)
+        print(f"  -> encryption_at_rest: {n} rows")
+
+        n = load_image_signing_verification(session)
+        print(f"  -> image_signing_verification: {n} rows")
 
         session.commit()
         print("Done -- all data committed.")

@@ -31,6 +31,9 @@ Example:
 - `workload resource quotas` — ResourceQuotas and LimitRanges across all namespaces for workload resource enforcement
 - `trusted image enforcement` — `image.config.openshift.io/cluster` registry sources, `ClusterImagePolicy` / `ImagePolicy` signature requirements, mirror policies, and image admission webhook detection (OCP-42)
 - `pod security admission` — per-namespace `pod-security.kubernetes.io/{enforce,audit,warn}` labels and versions (OCP-43)
+- `logical project isolation` — per-namespace default-deny `NetworkPolicy`, `ResourceQuota` / `LimitRange`, ownership label, `RoleBinding` and `ServiceAccount` counts (OCP-45)
+- `encryption at rest` — etcd encryption type, `StorageClass` encryption parameters, worker-node LUKS / Tang / Clevis MachineConfigs, and sample PV encryption status (OCP-46)
+- `image signing verification` — `ClusterImagePolicy` / `ImagePolicy` signature requirements, `BuildConfig` signing hooks, Tekton signing tasks, and registry sigstore signature stores (OCP-47)
 - `worker node auth` — worker node authentication and authorization enforcement
 - `credential management` — cluster admin and infrastructure credential audit
 - `platform guardrails` — platform distribution validation and misconfigured component detection
@@ -68,6 +71,9 @@ See [`scripts/README.md`](scripts/README.md) for full column details and usage.
 | **Trusted Image Enforcement** | `export-trusted-image-enforcement.sh`, `export-governance-policy-ecosystem.sh` (image policy section), `export-vulnerability-runtime-detection.sh` |
 | **Pod Security Context** | `export-pod-security-admission.sh`, `export-scc-privileged.sh`, `export-shared-responsibility-model.sh` (PSA labels) |
 | **Runtime Security** | `export-vulnerability-runtime-detection.sh` |
+| **Logical Project Isolation** | `export-logical-project-isolation.sh`, `export-shared-responsibility-model.sh`, `export-network-security-mesh.sh` |
+| **Encryption at Rest** | `export-encryption-at-rest.sh`, `export-etcd-encryption-status.sh` |
+| **Image Signing & Verification** | `export-image-signing-verification.sh`, `export-trusted-image-enforcement.sh`, `export-cicd-pipeline-enforcement.sh` |
 | **Worker Node AuthN/AuthZ** | `export-worker-node-auth.sh` |
 | **Cluster Admin/SRE Credential Management** | `export-credential-management.sh`, `export-oauth-external-auth.sh` |
 | **Cluster Version & Health** | `export-clusterversion.sh`, `export-clusteroperators.sh` |
