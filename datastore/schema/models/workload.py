@@ -75,3 +75,58 @@ class WorkloadResourceQuota(Base):
     min_value: Mapped[str | None] = mapped_column(String, nullable=True)
 
     cluster = relationship("Cluster", back_populates="workload_resource_quota_records")
+
+
+class TrustedImageEnforcement(Base):
+    """OCP-42: image admission, signing and mirror policy.
+
+    Sourced from ``export-trusted-image-enforcement.sh``. ``record_type`` is
+    one of ``image_config`` (the cluster-scoped ``image.config.openshift.io``
+    resource), ``cluster_image_policy`` / ``image_policy`` (signature-
+    verification policies), ``image_content_source_policy`` (registry
+    mirroring), or ``admission_plugin`` (image-policy webhook detection).
+    The ``detail_*`` columns carry record-type-specific evidence — see
+    ``scripts/README.md`` for the full mapping.
+    """
+
+    __tablename__ = "trusted_image_enforcement"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    cluster_id: Mapped[int] = mapped_column(Integer, ForeignKey("clusters.id", ondelete="CASCADE"), nullable=False)
+    record_type: Mapped[str | None] = mapped_column(String, nullable=True)
+    name: Mapped[str | None] = mapped_column(String, nullable=True)
+    namespace: Mapped[str | None] = mapped_column(String, nullable=True)
+    detail_1: Mapped[str | None] = mapped_column(String, nullable=True)
+    detail_2: Mapped[str | None] = mapped_column(String, nullable=True)
+    detail_3: Mapped[str | None] = mapped_column(String, nullable=True)
+    detail_4: Mapped[str | None] = mapped_column(String, nullable=True)
+    detail_5: Mapped[str | None] = mapped_column(String, nullable=True)
+    detail_6: Mapped[str | None] = mapped_column(String, nullable=True)
+
+    cluster = relationship("Cluster", back_populates="trusted_image_enforcement_records")
+
+
+class PodSecurityAdmission(Base):
+    """OCP-43: per-namespace Pod Security Admission labels.
+
+    One row per namespace, capturing the
+    ``pod-security.kubernetes.io/{enforce,audit,warn}`` levels and
+    versions. ``is_system_namespace`` flags ``openshift-*``, ``kube-*``
+    and ``default`` namespaces so notebooks can scope verdicts to user
+    workloads only.
+    """
+
+    __tablename__ = "pod_security_admission"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    cluster_id: Mapped[int] = mapped_column(Integer, ForeignKey("clusters.id", ondelete="CASCADE"), nullable=False)
+    namespace: Mapped[str | None] = mapped_column(String, nullable=True)
+    is_system_namespace: Mapped[str | None] = mapped_column(String, nullable=True)
+    enforce_level: Mapped[str | None] = mapped_column(String, nullable=True)
+    enforce_version: Mapped[str | None] = mapped_column(String, nullable=True)
+    audit_level: Mapped[str | None] = mapped_column(String, nullable=True)
+    audit_version: Mapped[str | None] = mapped_column(String, nullable=True)
+    warn_level: Mapped[str | None] = mapped_column(String, nullable=True)
+    warn_version: Mapped[str | None] = mapped_column(String, nullable=True)
+
+    cluster = relationship("Cluster", back_populates="pod_security_admission_records")

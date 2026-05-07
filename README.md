@@ -29,6 +29,8 @@ Example:
 - `apiserver console access` — API server and console security config
 - `scc privileged` — all SecurityContextConstraints for container least-privilege and SCC enforcement auditing
 - `workload resource quotas` — ResourceQuotas and LimitRanges across all namespaces for workload resource enforcement
+- `trusted image enforcement` — `image.config.openshift.io/cluster` registry sources, `ClusterImagePolicy` / `ImagePolicy` signature requirements, mirror policies, and image admission webhook detection (OCP-42)
+- `pod security admission` — per-namespace `pod-security.kubernetes.io/{enforce,audit,warn}` labels and versions (OCP-43)
 - `worker node auth` — worker node authentication and authorization enforcement
 - `credential management` — cluster admin and infrastructure credential audit
 - `platform guardrails` — platform distribution validation and misconfigured component detection
@@ -63,8 +65,9 @@ See [`scripts/README.md`](scripts/README.md) for full column details and usage.
 | **SCC Enforcement** | `export-scc-privileged.sh`, `export-clusterrolebindings.sh` |
 | **Privileged Container Controls** | `export-scc-privileged.sh` |
 | **Workload Resource Quotas** | `export-workload-resource-quotas.sh`, `export-shared-responsibility-model.sh` |
-| **Trusted Image Enforcement** | `export-governance-policy-ecosystem.sh` (image policy section), `export-vulnerability-runtime-detection.sh` |
-| **Pod Security Context** | `export-scc-privileged.sh`, `export-shared-responsibility-model.sh` (PSA labels) |
+| **Trusted Image Enforcement** | `export-trusted-image-enforcement.sh`, `export-governance-policy-ecosystem.sh` (image policy section), `export-vulnerability-runtime-detection.sh` |
+| **Pod Security Context** | `export-pod-security-admission.sh`, `export-scc-privileged.sh`, `export-shared-responsibility-model.sh` (PSA labels) |
+| **Runtime Security** | `export-vulnerability-runtime-detection.sh` |
 | **Worker Node AuthN/AuthZ** | `export-worker-node-auth.sh` |
 | **Cluster Admin/SRE Credential Management** | `export-credential-management.sh`, `export-oauth-external-auth.sh` |
 | **Cluster Version & Health** | `export-clusterversion.sh`, `export-clusteroperators.sh` |

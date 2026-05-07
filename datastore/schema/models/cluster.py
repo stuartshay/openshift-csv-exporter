@@ -43,6 +43,8 @@ class Cluster(Base):
     ingress_boundary_protection_records = relationship("IngressBoundaryProtection", back_populates="cluster")
     scc_privileged_records = relationship("SccPrivileged", back_populates="cluster")
     workload_resource_quota_records = relationship("WorkloadResourceQuota", back_populates="cluster")
+    trusted_image_enforcement_records = relationship("TrustedImageEnforcement", back_populates="cluster")
+    pod_security_admission_records = relationship("PodSecurityAdmission", back_populates="cluster")
 
 
 class ClusterEnv(Base):

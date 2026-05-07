@@ -602,6 +602,83 @@ Exports ResourceQuotas and LimitRanges across all namespaces for workload resour
 
 ---
 
+### export-trusted-image-enforcement.sh
+
+Exports cluster-wide image trust posture: registry restrictions in `image.config.openshift.io/cluster`, signature-verification policies (`ClusterImagePolicy` / `ImagePolicy`), registry mirroring (`ImageContentSourcePolicy`, `ImageDigestMirrorSet`, `ImageTagMirrorSet`), and the presence of an image-policy admission webhook. Answers: **does the cluster prevent the use of unapproved images? (OCP-42)**
+
+```bash
+./scripts/export-trusted-image-enforcement.sh
+```
+
+**OC commands:**
+
+- `oc get image.config.openshift.io/cluster -o json`
+- `oc get clusterimagepolicies.config.openshift.io -A -o json`
+- `oc get imagepolicies.config.openshift.io -A -o json`
+- `oc get imagecontentsourcepolicies.operator.openshift.io -o json`
+- `oc get imagedigestmirrorsets.config.openshift.io -o json`
+- `oc get imagetagmirrorsets.config.openshift.io -o json`
+- `oc get validatingwebhookconfigurations -o json`
+
+**Output file:** `trusted-image-enforcement-<cluster>-<timestamp>.csv`
+
+| Column | Description |
+|---|---|
+| `record_type` | `image_config`, `cluster_image_policy`, `image_policy`, `image_content_source_policy`, or `admission_plugin` |
+| `name` | Resource name |
+| `namespace` | Namespace (empty for cluster-scoped resources) |
+| `detail_1` | `image_config`: allowed registries (`;`-delimited) — `cluster_image_policy`: scopes — `image_content_source_policy`: mirror count — `admission_plugin`: enabled flag |
+| `detail_2` | `image_config`: blocked registries — `cluster_image_policy`: signature_required (`true`/`false`) — `image_content_source_policy`: source repos |
+| `detail_3` | `image_config`: insecure registries — `cluster_image_policy`: public_key_present — `image_content_source_policy`: mirror repos |
+| `detail_4` | `image_config`: allowed-for-import domain names — `cluster_image_policy`: transparency_log present |
+| `detail_5` | `image_config`: additional trusted CA name |
+| `detail_6` | `image_config`: registry sources block set (`true`/`false`) |
+
+**What auditors should look for:**
+
+- `image_config.detail_1` (allowed registries) **must be non-empty** — an empty list means any registry is permitted
+- At least one `cluster_image_policy` row should have `detail_2=true` (signature verification required)
+- Mirror policies (`image_content_source_policy`) should be present for any disconnected / pull-through configuration
+- The `ImagePolicyWebhook` admission row should report `detail_1=true` if image signature/policy enforcement at admission is required
+- Cross-reference with `export-vulnerability-runtime-detection.sh` for runtime detection of policy bypass
+
+---
+
+### export-pod-security-admission.sh
+
+Exports per-namespace Pod Security Admission (PSA) labels — the upstream Kubernetes mechanism that replaces PodSecurityPolicy in OCP 4.18. Answers: **is every user namespace running under `baseline` or `restricted` enforcement? (OCP-43)**
+
+```bash
+./scripts/export-pod-security-admission.sh
+```
+
+**OC commands:**
+
+- `oc get namespaces -o json`
+
+**Output file:** `pod-security-admission-<cluster>-<timestamp>.csv`
+
+| Column | Description |
+|---|---|
+| `namespace` | Namespace name |
+| `is_system_namespace` | `true` if name matches `openshift-*`, `kube-*`, or `default` |
+| `enforce_level` | Value of `pod-security.kubernetes.io/enforce` (`privileged`, `baseline`, `restricted`, or empty) |
+| `enforce_version` | Value of `pod-security.kubernetes.io/enforce-version` |
+| `audit_level` | Value of `pod-security.kubernetes.io/audit` |
+| `audit_version` | Value of `pod-security.kubernetes.io/audit-version` |
+| `warn_level` | Value of `pod-security.kubernetes.io/warn` |
+| `warn_version` | Value of `pod-security.kubernetes.io/warn-version` |
+
+**What auditors should look for:**
+
+- Every **user** namespace (non-`openshift-*`, non-`kube-*`, non-`default`) should have `enforce_level` set to `baseline` or `restricted`
+- `enforce_level=privileged` on a user namespace bypasses all PSA controls
+- A missing/empty `enforce_level` label means OCP falls back to the global default; in OCP 4.18 this is `restricted` for new namespaces but legacy namespaces may still be unlabelled
+- Pin `enforce_version` to a specific Kubernetes version (e.g. `v1.30`) so policy semantics do not silently change at upgrade
+- Use `audit_level=restricted` and `warn_level=restricted` even when enforcing `baseline`, so violations surface in the audit log and as developer warnings
+
+---
+
 ### export-worker-node-auth.sh
 
 Exports worker node authentication and authorization enforcement status. Verifies that each node has its desired machine config applied and checks for any KubeletConfig overrides to default authentication/authorization settings.
@@ -1796,8 +1873,9 @@ DEBUG=true ./scripts/export-oauth-external-auth.sh
 | **SCC Enforcement** | `export-scc-privileged.sh`, `export-clusterrolebindings.sh` |
 | **Privileged Container Controls** | `export-scc-privileged.sh` |
 | **Workload Resource Quotas** | `export-workload-resource-quotas.sh`, `export-shared-responsibility-model.sh` |
-| **Trusted Image Enforcement** | `export-governance-policy-ecosystem.sh` (image policy section), `export-vulnerability-runtime-detection.sh` |
-| **Pod Security Context** | `export-scc-privileged.sh`, `export-shared-responsibility-model.sh` (PSA labels) |
+| **Trusted Image Enforcement** | `export-trusted-image-enforcement.sh`, `export-governance-policy-ecosystem.sh` (image policy section), `export-vulnerability-runtime-detection.sh` |
+| **Pod Security Context** | `export-pod-security-admission.sh`, `export-scc-privileged.sh`, `export-shared-responsibility-model.sh` (PSA labels) |
+| **Runtime Security** | `export-vulnerability-runtime-detection.sh` |
 | **Worker Node AuthN/AuthZ** | `export-worker-node-auth.sh` |
 | **Cluster Admin/SRE Credential Management** | `export-credential-management.sh`, `export-oauth-external-auth.sh` |
 | **Cluster Version & Health** | `export-clusterversion.sh`, `export-clusteroperators.sh` |

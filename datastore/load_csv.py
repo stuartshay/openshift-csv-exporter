@@ -51,11 +51,13 @@ from schema.models import (
     OlmGovernance,
     PatchLifecycleCheck,
     PlatformGuardrail,
+    PodSecurityAdmission,
     PolicyAsCodeConstraint,
     SccPrivileged,
     SecretsCertRotation,
     SelfProvisionerBinding,
     SelfProvisionerSubject,
+    TrustedImageEnforcement,
     VulnerabilityRuntimeDetection,
     WorkerNodeAuth,
     WorkloadResourceQuota,
@@ -1006,9 +1008,6 @@ def load_ingress_boundary_protection(session: Session) -> int:
     return count
 
 
-# -- Main -------------------------------------------------------------------
-
-
 def load_scc_privileged(session: Session) -> int:
     """Load scc-privileged CSVs (OCP-39 / OCP-40). Returns row count."""
     files = _find_csvs("scc-privileged-*.csv")
@@ -1085,6 +1084,72 @@ def load_workload_resource_quotas(session: Session) -> int:
                 )
                 count += 1
     return count
+
+
+def load_trusted_image_enforcement(session: Session) -> int:
+    """Load trusted-image-enforcement CSVs (OCP-42). Returns row count."""
+    files = _find_csvs("trusted-image-enforcement-*.csv")
+    count = 0
+    for filepath in files:
+        print(f"  Loading {Path(filepath).name}")
+        with open(filepath, newline="") as f:
+            for row in csv.DictReader(f):
+                cluster = _get_or_create_cluster(
+                    session,
+                    row["cluster_name"],
+                    row["cluster_context"],
+                    row["cluster_server"],
+                )
+                session.add(
+                    TrustedImageEnforcement(
+                        cluster_id=cluster.id,
+                        record_type=(row.get("record_type") or None),
+                        name=(row.get("name") or None),
+                        namespace=(row.get("namespace") or None),
+                        detail_1=(row.get("detail_1") or None),
+                        detail_2=(row.get("detail_2") or None),
+                        detail_3=(row.get("detail_3") or None),
+                        detail_4=(row.get("detail_4") or None),
+                        detail_5=(row.get("detail_5") or None),
+                        detail_6=(row.get("detail_6") or None),
+                    )
+                )
+                count += 1
+    return count
+
+
+def load_pod_security_admission(session: Session) -> int:
+    """Load pod-security-admission CSVs (OCP-43). Returns row count."""
+    files = _find_csvs("pod-security-admission-*.csv")
+    count = 0
+    for filepath in files:
+        print(f"  Loading {Path(filepath).name}")
+        with open(filepath, newline="") as f:
+            for row in csv.DictReader(f):
+                cluster = _get_or_create_cluster(
+                    session,
+                    row["cluster_name"],
+                    row["cluster_context"],
+                    row["cluster_server"],
+                )
+                session.add(
+                    PodSecurityAdmission(
+                        cluster_id=cluster.id,
+                        namespace=(row.get("namespace") or None),
+                        is_system_namespace=(row.get("is_system_namespace") or None),
+                        enforce_level=(row.get("enforce_level") or None),
+                        enforce_version=(row.get("enforce_version") or None),
+                        audit_level=(row.get("audit_level") or None),
+                        audit_version=(row.get("audit_version") or None),
+                        warn_level=(row.get("warn_level") or None),
+                        warn_version=(row.get("warn_version") or None),
+                    )
+                )
+                count += 1
+    return count
+
+
+# -- Main -------------------------------------------------------------------
 
 
 def main() -> None:
@@ -1180,6 +1245,12 @@ def main() -> None:
 
         n = load_workload_resource_quotas(session)
         print(f"  -> workload_resource_quotas: {n} rows")
+
+        n = load_trusted_image_enforcement(session)
+        print(f"  -> trusted_image_enforcement: {n} rows")
+
+        n = load_pod_security_admission(session)
+        print(f"  -> pod_security_admission: {n} rows")
 
         session.commit()
         print("Done -- all data committed.")
