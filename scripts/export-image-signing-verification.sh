@@ -47,7 +47,7 @@ write_row() {
 echo "[$(date +%H:%M:%S)] [$LABEL] Fetching ClusterImagePolicy / ImagePolicy..."
 CIP_JSON=$(oc get clusterimagepolicies.config.openshift.io -A -o json 2>/dev/null || echo '{"items":[]}')
 IP_JSON=$(oc get imagepolicies.config.openshift.io -A -o json 2>/dev/null || echo '{"items":[]}')
-ALL_POLICIES=$(jq -s '{items: ((.[0].items // []) + (.[1].items // []))}' <(echo "$CIP_JSON") <(echo "$IP_JSON"))
+ALL_POLICIES=$(printf '%s\n%s\n' "$CIP_JSON" "$IP_JSON" | jq -s '{items: ((.[0].items // []) + (.[1].items // []))}')
 POLICY_COUNT=$(echo "$ALL_POLICIES" | jq '.items | length')
 echo "[$(date +%H:%M:%S)] [$LABEL] Processing $POLICY_COUNT image policies..."
 
