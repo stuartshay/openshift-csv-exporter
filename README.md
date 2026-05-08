@@ -33,7 +33,10 @@ Example:
 - `pod security admission` — per-namespace `pod-security.kubernetes.io/{enforce,audit,warn}` labels and versions (OCP-43)
 - `logical project isolation` — per-namespace default-deny `NetworkPolicy`, `ResourceQuota` / `LimitRange`, ownership label, `RoleBinding` and `ServiceAccount` counts (OCP-45)
 - `encryption at rest` — etcd encryption type, `StorageClass` encryption parameters, worker-node LUKS / Tang / Clevis MachineConfigs, and sample PV encryption status (OCP-46)
-- `image signing verification` — `ClusterImagePolicy` / `ImagePolicy` signature requirements, `BuildConfig` signing hooks, Tekton signing tasks, and registry sigstore signature stores (OCP-47)
+- `image signing verification` — `ClusterImagePolicy` / `ImagePolicy` signature requirements, `BuildConfig` signing hooks, Tekton signing tasks, and registry sigstore signature stores (OCP-48)
+- `build s2i policy` — cluster-scoped `build.config.openshift.io/cluster` build defaults, per-`BuildConfig` strategy and source/push secrets, and `ImageStream` lookupPolicy / tag policies (OCP-47)
+- `ephemeral storage limits` — per-namespace `LimitRange` defaults / max for `ephemeral-storage`, `ResourceQuota` ephemeral caps, and pods using `emptyDir` without `sizeLimit` (OCP-49)
+- `admission controller hardening` — apiserver audit / TLS profile, enabled / disabled admission plugins (built-in defaults plus `ValidatingAdmissionWebhook` / `MutatingAdmissionWebhook`), and per-webhook failurePolicy / sideEffects / timeout / scope (OCP-50)
 - `worker node auth` — worker node authentication and authorization enforcement
 - `credential management` — cluster admin and infrastructure credential audit
 - `platform guardrails` — platform distribution validation and misconfigured component detection
@@ -74,6 +77,9 @@ See [`scripts/README.md`](scripts/README.md) for full column details and usage.
 | **Logical Project Isolation** | `export-logical-project-isolation.sh`, `export-shared-responsibility-model.sh`, `export-network-security-mesh.sh` |
 | **Encryption at Rest** | `export-encryption-at-rest.sh`, `export-etcd-encryption-status.sh` |
 | **Image Signing & Verification** | `export-image-signing-verification.sh`, `export-trusted-image-enforcement.sh`, `export-cicd-pipeline-enforcement.sh` |
+| **Build / Source-to-Image (S2I) Policy** | `export-build-s2i-policy.sh`, `export-cicd-pipeline-enforcement.sh` |
+| **Ephemeral Storage Limits** | `export-ephemeral-storage-limits.sh`, `export-workload-resource-quotas.sh` |
+| **Admission Controller Hardening** | `export-admission-controller-hardening.sh`, `export-apiserver-console-access.sh`, `export-pod-security-admission.sh` |
 | **Worker Node AuthN/AuthZ** | `export-worker-node-auth.sh` |
 | **Cluster Admin/SRE Credential Management** | `export-credential-management.sh`, `export-oauth-external-auth.sh` |
 | **Cluster Version & Health** | `export-clusterversion.sh`, `export-clusteroperators.sh` |

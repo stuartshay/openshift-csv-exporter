@@ -760,7 +760,7 @@ Exports encryption-at-rest evidence: etcd encryption type, `StorageClass` encryp
 
 ### export-image-signing-verification.sh
 
-Exports image-signing evidence: `ClusterImagePolicy` / `ImagePolicy` signature requirements, `BuildConfig` push targets and signing hooks, Tekton tasks that invoke `cosign` / `notation` / `sigstore`, and registry sigstore signature stores from `image.config.openshift.io/cluster`. Answers: **does this cluster sign the images it produces and verify signatures before deployment? (OCP-47)**
+Exports image-signing evidence: `ClusterImagePolicy` / `ImagePolicy` signature requirements, `BuildConfig` push targets and signing hooks, Tekton tasks that invoke `cosign` / `notation` / `sigstore`, and registry sigstore signature stores from `image.config.openshift.io/cluster`. Answers: **does this cluster sign the images it produces and verify signatures before deployment? (OCP-48)**
 
 ```bash
 ./scripts/export-image-signing-verification.sh
@@ -795,6 +795,124 @@ Exports image-signing evidence: `ClusterImagePolicy` / `ImagePolicy` signature r
 - At least one `build_config` row with `detail_4=true`, **or** at least one `tekton_signing_task` row, must be present — otherwise the cluster verifies signatures it never produces
 - `registry_signature_config` rows enumerate where the cluster fetches signatures from; missing entries on a cluster that requires signatures is a misconfiguration
 - A single `(none)` sentinel row for `cluster_image_policy_signature` means **no signature policies are defined** — the cluster will accept unsigned images
+
+---
+
+### export-build-s2i-policy.sh
+
+Exports build pipeline hardening evidence: cluster-scoped `build.config.openshift.io/cluster` build defaults, per-`BuildConfig` strategy / source / push secrets / forcePull / privileged Custom-strategy flags, and `ImageStream` `spec.lookupPolicy.local` plus tag reference policies. Answers: **do builds and Source-to-Image flows on this cluster follow a hardened policy? (OCP-47)**
+
+```bash
+./scripts/export-build-s2i-policy.sh
+```
+
+**OC commands:**
+
+- `oc get build.config.openshift.io cluster -o json`
+- `oc get buildconfigs -A -o json`
+- `oc get imagestreams -A -o json`
+
+**Output file:** `build-s2i-policy-<cluster>-<timestamp>.csv`
+
+| Column | Description |
+|---|---|
+| `record_type` | `build_default_config`, `build_config`, or `image_stream_policy` |
+| `name` | Resource name (`cluster` for the build default config; `(none)` when no defaults are set) |
+| `namespace` | Namespace (empty for cluster-scoped) |
+| `detail_1` | defaults: git proxy URL; build_config: build strategy (`Source`, `Docker`, `Custom`, `JenkinsPipeline`); image_stream_policy: `lookupPolicy.local` (`true` / `false`) |
+| `detail_2` | defaults: image labels (`;`-delimited keys); build_config: base image; image_stream_policy: tag count |
+| `detail_3` | defaults: resource limits; build_config: source secret reference; image_stream_policy: `;`-delimited insecure tags |
+| `detail_4` | defaults: resource requests; build_config: push secret reference; image_stream_policy: dominant tag reference policy (`Source` / `Local`) |
+| `detail_5` | defaults: overrides count; build_config: `forcePull` (`true` / `false`) |
+| `detail_6` | build_config: `exposeDockerSocket` and `noCache` flags for the Custom strategy (pipe-separated `true` / `false`) |
+
+**What auditors should look for:**
+
+- A `build_default_config` row whose `name` is **not** `(none)` and whose `detail_2` (image labels) is non-empty — defaults applied to every build in the cluster
+- No `build_config` rows with `detail_1=Custom` and `detail_6` starting with `true` (docker socket exposed in a Custom build)
+- `build_config` rows for production namespaces should have `detail_4` (push secret) populated
+- Every `image_stream_policy` row should have `detail_1=true` (`lookupPolicy.local`) so workloads resolve against the internal registry
+- `image_stream_policy` rows with non-empty `detail_3` (insecure tags) are a hardening gap
+
+---
+
+### export-ephemeral-storage-limits.sh
+
+Exports per-namespace ephemeral-storage governance. Captures whether a `LimitRange` supplies a default request, default limit, and max for `ephemeral-storage`, whether a `ResourceQuota` caps `requests.ephemeral-storage` / `limits.ephemeral-storage`, and how many pods in the namespace use `emptyDir` volumes without `sizeLimit`. Answers: **is ephemeral storage bounded so pods cannot exhaust node disks? (OCP-49)**
+
+```bash
+./scripts/export-ephemeral-storage-limits.sh
+```
+
+**OC commands:**
+
+- `oc get namespaces -o json`
+- `oc get limitranges -A -o json`
+- `oc get resourcequotas -A -o json`
+- `oc get pods -A -o json`
+
+**Output file:** `ephemeral-storage-limits-<cluster>-<timestamp>.csv`
+
+| Column | Description |
+|---|---|
+| `namespace` | Namespace name |
+| `is_system_namespace` | `true` for `openshift-*` / `kube-*` / `default`; `false` for user namespaces |
+| `has_lr_default_request` | `true` if a `LimitRange` supplies `defaultRequest.ephemeral-storage` |
+| `has_lr_default_limit` | `true` if a `LimitRange` supplies `default.ephemeral-storage` |
+| `has_lr_max` | `true` if a `LimitRange` supplies `max.ephemeral-storage` |
+| `lr_default_request` | Resolved `defaultRequest.ephemeral-storage` value |
+| `lr_default_limit` | Resolved `default.ephemeral-storage` value |
+| `lr_max` | Resolved `max.ephemeral-storage` value |
+| `has_quota_request` | `true` if any `ResourceQuota` caps `requests.ephemeral-storage` |
+| `has_quota_limit` | `true` if any `ResourceQuota` caps `limits.ephemeral-storage` |
+| `quota_request_hard` | Resolved `requests.ephemeral-storage` quota value |
+| `quota_limit_hard` | Resolved `limits.ephemeral-storage` quota value |
+| `emptydir_pods_total` | Count of pods in this namespace using at least one `emptyDir` volume |
+| `emptydir_pods_without_sizelimit` | Subset of the above where at least one `emptyDir` lacks `sizeLimit` |
+
+**What auditors should look for:**
+
+- For every user namespace (`is_system_namespace=false`): `has_lr_default_request=true`, `has_lr_default_limit=true`, and `has_quota_request=true`
+- `emptydir_pods_without_sizelimit` should be `0` in every user namespace; non-zero values indicate pods that can fill node ephemeral storage
+- A user namespace with no LimitRange or ResourceQuota rows for ephemeral storage relies entirely on node-level eviction, which is a hardening gap
+
+---
+
+### export-admission-controller-hardening.sh
+
+Exports admission controller posture: apiserver `audit` / TLS profile, the raw enabled / disabled admission plugin lists from `kubeapiserver.operator.openshift.io/cluster`, the resolved status of each OCP 4.18 default-on hardening plugin (`LimitRanger`, `ResourceQuota`, `PodSecurity`, `NodeRestriction`, `MutatingAdmissionWebhook`, `ValidatingAdmissionWebhook`), and per-webhook `failurePolicy` / `timeoutSeconds` / `sideEffects` / scope / resources / namespaceSelector for every `ValidatingWebhookConfiguration` and `MutatingWebhookConfiguration`. Answers: **are admission controllers configured to fail safe? (OCP-50)**
+
+```bash
+./scripts/export-admission-controller-hardening.sh
+```
+
+**OC commands:**
+
+- `oc get apiserver.config.openshift.io cluster -o json`
+- `oc get kubeapiserver.operator.openshift.io cluster -o json`
+- `oc get validatingwebhookconfigurations -o json`
+- `oc get mutatingwebhookconfigurations -o json`
+
+**Output file:** `admission-controller-hardening-<cluster>-<timestamp>.csv`
+
+| Column | Description |
+|---|---|
+| `record_type` | `apiserver_config`, `apiserver_admission_plugin`, `default_admission_plugin`, `validating_webhook`, or `mutating_webhook` |
+| `name` | Resource / plugin / webhook name (webhook rows use `<configuration>/<webhook>`) |
+| `namespace` | Empty (all records here are cluster-scoped) |
+| `detail_1` | apiserver_config: audit profile; apiserver_admission_plugin: `;`-delimited enabled list; default_admission_plugin: `enabled` / `disabled` / `default` / `unknown`; webhook: `failurePolicy` |
+| `detail_2` | apiserver_config: TLS profile; apiserver_admission_plugin: `;`-delimited disabled list; webhook: `timeoutSeconds` |
+| `detail_3` | webhook: `sideEffects` |
+| `detail_4` | webhook: scope (`Cluster` / `Namespaced` / `*`) |
+| `detail_5` | webhook: `;`-delimited resources |
+| `detail_6` | webhook: namespaceSelector summary |
+
+**What auditors should look for:**
+
+- The `apiserver_config` row should report a non-empty audit profile (e.g. `Default`, `WriteRequestBodies`, `AllRequestBodies`) and a current TLS profile (`Intermediate` or `Modern`); `Old` is a hardening gap
+- No `default_admission_plugin` row with `name` in {`PodSecurity`, `LimitRanger`, `ResourceQuota`, `NodeRestriction`, `MutatingAdmissionWebhook`, `ValidatingAdmissionWebhook`} should have `detail_1=disabled`
+- No `validating_webhook` or `mutating_webhook` row should combine `detail_1=Ignore` (`failurePolicy`) with `detail_3=Unknown` (`sideEffects`) — that lets requests through silently when the webhook is unreachable
+- Webhook `detail_2` (`timeoutSeconds`) should be ≤ 10 for any webhook in the cluster admission path; longer timeouts amplify outages
 
 ---
 
@@ -1998,6 +2116,9 @@ DEBUG=true ./scripts/export-oauth-external-auth.sh
 | **Logical Project Isolation** | `export-logical-project-isolation.sh`, `export-shared-responsibility-model.sh`, `export-network-security-mesh.sh` |
 | **Encryption at Rest** | `export-encryption-at-rest.sh`, `export-etcd-encryption-status.sh` |
 | **Image Signing & Verification** | `export-image-signing-verification.sh`, `export-trusted-image-enforcement.sh`, `export-cicd-pipeline-enforcement.sh` |
+| **Build / Source-to-Image (S2I) Policy** | `export-build-s2i-policy.sh`, `export-cicd-pipeline-enforcement.sh` |
+| **Ephemeral Storage Limits** | `export-ephemeral-storage-limits.sh`, `export-workload-resource-quotas.sh` |
+| **Admission Controller Hardening** | `export-admission-controller-hardening.sh`, `export-apiserver-console-access.sh`, `export-pod-security-admission.sh` |
 | **Worker Node AuthN/AuthZ** | `export-worker-node-auth.sh` |
 | **Cluster Admin/SRE Credential Management** | `export-credential-management.sh`, `export-oauth-external-auth.sh` |
 | **Cluster Version & Health** | `export-clusterversion.sh`, `export-clusteroperators.sh` |

@@ -39,7 +39,10 @@ from .rbac import (
 )
 from .worker_node import WorkerNodeAuth
 from .workload import (
+    AdmissionControllerHardening,
+    BuildS2iPolicy,
     EncryptionAtRest,
+    EphemeralStorageLimits,
     ImageSigningVerification,
     LogicalProjectIsolation,
     PodSecurityAdmission,
@@ -49,7 +52,9 @@ from .workload import (
 )
 
 __all__ = [
+    "AdmissionControllerHardening",
     "ApiServerConsoleAccess",
+    "BuildS2iPolicy",
     "CICDPipelineDetection",
     "Cluster",
     "ClusterAdminBinding",
@@ -70,6 +75,7 @@ __all__ = [
     "CredentialManagementSecret",
     "DisasterRecoveryBackup",
     "EncryptionAtRest",
+    "EphemeralStorageLimits",
     "ImageSigningVerification",
     "IngressBoundaryProtection",
     "LogicalProjectIsolation",

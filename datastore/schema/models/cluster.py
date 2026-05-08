@@ -48,6 +48,9 @@ class Cluster(Base):
     logical_project_isolation_records = relationship("LogicalProjectIsolation", back_populates="cluster")
     encryption_at_rest_records = relationship("EncryptionAtRest", back_populates="cluster")
     image_signing_verification_records = relationship("ImageSigningVerification", back_populates="cluster")
+    build_s2i_policy_records = relationship("BuildS2iPolicy", back_populates="cluster")
+    ephemeral_storage_limits_records = relationship("EphemeralStorageLimits", back_populates="cluster")
+    admission_controller_hardening_records = relationship("AdmissionControllerHardening", back_populates="cluster")
 
 
 class ClusterEnv(Base):

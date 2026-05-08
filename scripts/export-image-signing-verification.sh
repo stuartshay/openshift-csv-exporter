@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Description: Exports image signing and verification posture — ClusterImagePolicy / ImagePolicy signature requirements (cosign / sigstore), BuildConfigs and their push-secret / sign configuration, Tekton signing tasks, and registry signature-store configuration — for OCP-47 Image Signing & Verification auditing
+# Description: Exports image signing and verification posture — ClusterImagePolicy / ImagePolicy signature requirements (cosign / sigstore), BuildConfigs and their push-secret / sign configuration, Tekton signing tasks, and registry signature-store configuration — for OCP-48 Image Signing & Verification auditing
 # Audit Area:  Image Signing and Verification
 set -euo pipefail
 

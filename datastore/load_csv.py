@@ -25,7 +25,9 @@ from pathlib import Path
 
 from schema.database import Base, SessionLocal, engine
 from schema.models import (
+    AdmissionControllerHardening,
     ApiServerConsoleAccess,
+    BuildS2iPolicy,
     CICDPipelineDetection,
     Cluster,
     ClusterAdminBinding,
@@ -43,6 +45,7 @@ from schema.models import (
     CredentialManagementSecret,
     DisasterRecoveryBackup,
     EncryptionAtRest,
+    EphemeralStorageLimits,
     EtcdEncryptionStatus,
     GovernancePolicyEcosystem,
     ImageSigningVerification,
@@ -1217,7 +1220,7 @@ def load_encryption_at_rest(session: Session) -> int:
 
 
 def load_image_signing_verification(session: Session) -> int:
-    """Load image-signing-verification CSVs (OCP-47). Returns row count."""
+    """Load image-signing-verification CSVs (OCP-48). Returns row count."""
     files = _find_csvs("image-signing-verification-*.csv")
     count = 0
     for filepath in files:
@@ -1232,6 +1235,116 @@ def load_image_signing_verification(session: Session) -> int:
                 )
                 session.add(
                     ImageSigningVerification(
+                        cluster_id=cluster.id,
+                        record_type=(row.get("record_type") or None),
+                        name=(row.get("name") or None),
+                        namespace=(row.get("namespace") or None),
+                        detail_1=(row.get("detail_1") or None),
+                        detail_2=(row.get("detail_2") or None),
+                        detail_3=(row.get("detail_3") or None),
+                        detail_4=(row.get("detail_4") or None),
+                        detail_5=(row.get("detail_5") or None),
+                        detail_6=(row.get("detail_6") or None),
+                    )
+                )
+                count += 1
+    return count
+
+
+def load_build_s2i_policy(session: Session) -> int:
+    """Load build-s2i-policy CSVs (OCP-47). Returns row count."""
+    files = _find_csvs("build-s2i-policy-*.csv")
+    count = 0
+    for filepath in files:
+        print(f"  Loading {Path(filepath).name}")
+        with open(filepath, newline="") as f:
+            for row in csv.DictReader(f):
+                cluster = _get_or_create_cluster(
+                    session,
+                    row["cluster_name"],
+                    row["cluster_context"],
+                    row["cluster_server"],
+                )
+                session.add(
+                    BuildS2iPolicy(
+                        cluster_id=cluster.id,
+                        record_type=(row.get("record_type") or None),
+                        name=(row.get("name") or None),
+                        namespace=(row.get("namespace") or None),
+                        detail_1=(row.get("detail_1") or None),
+                        detail_2=(row.get("detail_2") or None),
+                        detail_3=(row.get("detail_3") or None),
+                        detail_4=(row.get("detail_4") or None),
+                        detail_5=(row.get("detail_5") or None),
+                        detail_6=(row.get("detail_6") or None),
+                    )
+                )
+                count += 1
+    return count
+
+
+def _opt_int(value: str | None) -> int | None:
+    if value is None or value == "":
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def load_ephemeral_storage_limits(session: Session) -> int:
+    """Load ephemeral-storage-limits CSVs (OCP-49). Returns row count."""
+    files = _find_csvs("ephemeral-storage-limits-*.csv")
+    count = 0
+    for filepath in files:
+        print(f"  Loading {Path(filepath).name}")
+        with open(filepath, newline="") as f:
+            for row in csv.DictReader(f):
+                cluster = _get_or_create_cluster(
+                    session,
+                    row["cluster_name"],
+                    row["cluster_context"],
+                    row["cluster_server"],
+                )
+                session.add(
+                    EphemeralStorageLimits(
+                        cluster_id=cluster.id,
+                        namespace=(row.get("namespace") or None),
+                        is_system_namespace=(row.get("is_system_namespace") or None),
+                        has_lr_default_request=(row.get("has_lr_default_request") or None),
+                        has_lr_default_limit=(row.get("has_lr_default_limit") or None),
+                        has_lr_max=(row.get("has_lr_max") or None),
+                        lr_default_request=(row.get("lr_default_request") or None),
+                        lr_default_limit=(row.get("lr_default_limit") or None),
+                        lr_max=(row.get("lr_max") or None),
+                        has_quota_request=(row.get("has_quota_request") or None),
+                        has_quota_limit=(row.get("has_quota_limit") or None),
+                        quota_request_hard=(row.get("quota_request_hard") or None),
+                        quota_limit_hard=(row.get("quota_limit_hard") or None),
+                        emptydir_pods_total=_opt_int(row.get("emptydir_pods_total")),
+                        emptydir_pods_without_sizelimit=_opt_int(row.get("emptydir_pods_without_sizelimit")),
+                    )
+                )
+                count += 1
+    return count
+
+
+def load_admission_controller_hardening(session: Session) -> int:
+    """Load admission-controller-hardening CSVs (OCP-50). Returns row count."""
+    files = _find_csvs("admission-controller-hardening-*.csv")
+    count = 0
+    for filepath in files:
+        print(f"  Loading {Path(filepath).name}")
+        with open(filepath, newline="") as f:
+            for row in csv.DictReader(f):
+                cluster = _get_or_create_cluster(
+                    session,
+                    row["cluster_name"],
+                    row["cluster_context"],
+                    row["cluster_server"],
+                )
+                session.add(
+                    AdmissionControllerHardening(
                         cluster_id=cluster.id,
                         record_type=(row.get("record_type") or None),
                         name=(row.get("name") or None),
@@ -1359,6 +1472,15 @@ def main() -> None:
 
         n = load_image_signing_verification(session)
         print(f"  -> image_signing_verification: {n} rows")
+
+        n = load_build_s2i_policy(session)
+        print(f"  -> build_s2i_policy: {n} rows")
+
+        n = load_ephemeral_storage_limits(session)
+        print(f"  -> ephemeral_storage_limits: {n} rows")
+
+        n = load_admission_controller_hardening(session)
+        print(f"  -> admission_controller_hardening: {n} rows")
 
         session.commit()
         print("Done -- all data committed.")
