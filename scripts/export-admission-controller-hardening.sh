@@ -90,19 +90,30 @@ VWC=$(oc get validatingwebhookconfigurations -o json 2>/dev/null || echo '{"item
 VWC_COUNT=$(echo "$VWC" | jq '[.items[].webhooks[]?] | length')
 echo "[$(date +%H:%M:%S)] [$LABEL] Processing $VWC_COUNT validating webhooks..."
 
-echo "$VWC" | jq -c '.items[] as $cfg | $cfg.webhooks[]? | {cfg_name: $cfg.metadata.name, w: .}' | while IFS= read -r row; do
-  CFG=$(echo "$row" | jq -r '.cfg_name')
-  W=$(echo "$row" | jq -c '.w')
-  WNAME=$(echo "$W" | jq -r '.name // ""')
-  FAIL=$(echo "$W" | jq -r '.failurePolicy // "Fail"')
-  TIMEOUT=$(echo "$W" | jq -r '.timeoutSeconds // 30 | tostring')
-  SIDE=$(echo "$W" | jq -r '.sideEffects // "Unknown"')
-  SCOPE=$(echo "$W" | jq -r '[.rules[]?.scope] | unique | join(";")')
-  RES=$(echo "$W" | jq -r '[.rules[]?.resources[]?] | unique | join(";")')
-  NS_SEL=$(echo "$W" | jq -r '
-    .namespaceSelector // {} |
-    if (.matchLabels // {} | length) == 0 and (.matchExpressions // [] | length) == 0
-    then "" else (tostring) end')
+# Single jq pass emitting TSV avoids spawning multiple jq.exe processes per
+# row, which triggers the `wargc == argc` assertion on jq for Windows under
+# Git Bash when used inside nested while-read loops.
+# shellcheck disable=SC2016
+WEBHOOK_JQ='
+  .items[] as $cfg | $cfg.webhooks[]? as $w |
+  [
+    $cfg.metadata.name,
+    ($w.name // ""),
+    ($w.failurePolicy // "Fail"),
+    ($w.timeoutSeconds // 30 | tostring),
+    ($w.sideEffects // "Unknown"),
+    ([$w.rules[]?.scope] | unique | join(";")),
+    ([$w.rules[]?.resources[]?] | unique | join(";")),
+    (
+      ($w.namespaceSelector // {}) as $ns |
+      if (($ns.matchLabels // {}) | length) == 0
+        and (($ns.matchExpressions // []) | length) == 0
+      then "" else ($ns | tostring) end
+    )
+  ] | @tsv'
+
+echo "$VWC" | jq -r "$WEBHOOK_JQ" | while IFS=$'\t' read -r CFG WNAME FAIL TIMEOUT SIDE SCOPE RES NS_SEL; do
+  [ -z "$CFG" ] && continue
   write_row "validating_webhook" "${CFG}/${WNAME}" "" "$FAIL" "$TIMEOUT" "$SIDE" "$SCOPE" "$RES" "$NS_SEL"
 done
 
@@ -112,19 +123,8 @@ MWC=$(oc get mutatingwebhookconfigurations -o json 2>/dev/null || echo '{"items"
 MWC_COUNT=$(echo "$MWC" | jq '[.items[].webhooks[]?] | length')
 echo "[$(date +%H:%M:%S)] [$LABEL] Processing $MWC_COUNT mutating webhooks..."
 
-echo "$MWC" | jq -c '.items[] as $cfg | $cfg.webhooks[]? | {cfg_name: $cfg.metadata.name, w: .}' | while IFS= read -r row; do
-  CFG=$(echo "$row" | jq -r '.cfg_name')
-  W=$(echo "$row" | jq -c '.w')
-  WNAME=$(echo "$W" | jq -r '.name // ""')
-  FAIL=$(echo "$W" | jq -r '.failurePolicy // "Fail"')
-  TIMEOUT=$(echo "$W" | jq -r '.timeoutSeconds // 30 | tostring')
-  SIDE=$(echo "$W" | jq -r '.sideEffects // "Unknown"')
-  SCOPE=$(echo "$W" | jq -r '[.rules[]?.scope] | unique | join(";")')
-  RES=$(echo "$W" | jq -r '[.rules[]?.resources[]?] | unique | join(";")')
-  NS_SEL=$(echo "$W" | jq -r '
-    .namespaceSelector // {} |
-    if (.matchLabels // {} | length) == 0 and (.matchExpressions // [] | length) == 0
-    then "" else (tostring) end')
+echo "$MWC" | jq -r "$WEBHOOK_JQ" | while IFS=$'\t' read -r CFG WNAME FAIL TIMEOUT SIDE SCOPE RES NS_SEL; do
+  [ -z "$CFG" ] && continue
   write_row "mutating_webhook" "${CFG}/${WNAME}" "" "$FAIL" "$TIMEOUT" "$SIDE" "$SCOPE" "$RES" "$NS_SEL"
 done
 
