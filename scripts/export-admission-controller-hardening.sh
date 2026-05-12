@@ -26,21 +26,27 @@ echo "[$(date +%H:%M:%S)] [$LABEL] Starting export at $(date)"
 OUTPUT_FILE="$OUTPUT_DIR/admission-controller-hardening-${CLUSTER_NAME_SAFE}-$TIMESTAMP.csv"
 echo "cluster_name,cluster_context,cluster_server,record_type,name,namespace,detail_1,detail_2,detail_3,detail_4,detail_5,detail_6" > "$OUTPUT_FILE"
 
+# Pure-bash CSV escape + row writer. We deliberately avoid calling `jq` for
+# every output row because passing many `--arg` values (especially fields
+# that contain JSON fragments such as a serialized namespaceSelector) trips
+# the jq 1.6 for Windows `wargc == argc` assertion (src/main.c:256) during
+# MSYS argv conversion. Doing the CSV escaping in bash keeps each per-row
+# write argv-free and works identically on Linux, macOS, and Git Bash.
+csv_escape() {
+  # Double any embedded double-quotes, then wrap the whole value in quotes.
+  local v="${1-}"
+  printf '"%s"' "${v//\"/\"\"}"
+}
+
 write_row() {
-  jq -nr \
-    --arg cluster_name "$CLUSTER_NAME" \
-    --arg cluster_context "$CLUSTER_CONTEXT" \
-    --arg cluster_server "$CLUSTER_SERVER" \
-    --arg record_type "$1" \
-    --arg name "$2" \
-    --arg namespace "$3" \
-    --arg d1 "$4" \
-    --arg d2 "$5" \
-    --arg d3 "$6" \
-    --arg d4 "$7" \
-    --arg d5 "$8" \
-    --arg d6 "$9" \
-    '[$cluster_name,$cluster_context,$cluster_server,$record_type,$name,$namespace,$d1,$d2,$d3,$d4,$d5,$d6] | @csv' >> "$OUTPUT_FILE"
+  # Args: record_type name namespace d1 d2 d3 d4 d5 d6
+  local row
+  row="$(csv_escape "$CLUSTER_NAME"),$(csv_escape "$CLUSTER_CONTEXT"),$(csv_escape "$CLUSTER_SERVER")"
+  local f
+  for f in "$@"; do
+    row+=",$(csv_escape "$f")"
+  done
+  printf '%s\n' "$row" >> "$OUTPUT_FILE"
 }
 
 # ── Section 1: APIServer admission plugin config ───────────────────────────
