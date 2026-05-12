@@ -27,22 +27,24 @@ OUTPUT_FILE="$OUTPUT_DIR/network-security-mesh-${CLUSTER_NAME_SAFE}-$TIMESTAMP.c
 echo "cluster_name,cluster_context,cluster_server,record_type,component_name,status,namespace,detail_1,detail_2,detail_3,detail_4" > "$OUTPUT_FILE"
 
 # ── Helper: write a CSV row ──────────────────────────────────────────────────
+# Pure-bash CSV writer. Avoids spawning `jq -rn --arg ...` per row, which on
+# jq 1.6 for Windows / Git Bash trips the `wargc == argc` assertion
+# (src/main.c:256) during MSYS argv conversion when --arg values include
+# unusual characters. Implements RFC 4180 escaping in shell so behavior is
+# identical to the previous jq-based writer.
+csv_escape() {
+  local v="${1-}"
+  printf '"%s"' "${v//\"/\"\"}"
+}
 write_row() {
-  local record_type="$1" component_name="$2" status="$3" namespace="$4" detail_1="$5" detail_2="$6" detail_3="$7" detail_4="$8"
-  jq -rn \
-    --arg cluster_name "$CLUSTER_NAME" \
-    --arg cluster_context "$CLUSTER_CONTEXT" \
-    --arg cluster_server "$CLUSTER_SERVER" \
-    --arg record_type "$record_type" \
-    --arg component_name "$component_name" \
-    --arg status "$status" \
-    --arg namespace "$namespace" \
-    --arg detail_1 "$detail_1" \
-    --arg detail_2 "$detail_2" \
-    --arg detail_3 "$detail_3" \
-    --arg detail_4 "$detail_4" \
-    '[$cluster_name,$cluster_context,$cluster_server,$record_type,$component_name,$status,$namespace,$detail_1,$detail_2,$detail_3,$detail_4] | @csv' \
-    >> "$OUTPUT_FILE"
+  # Args: record_type component_name status namespace detail_1 detail_2 detail_3 detail_4
+  local row
+  row="$(csv_escape "$CLUSTER_NAME"),$(csv_escape "$CLUSTER_CONTEXT"),$(csv_escape "$CLUSTER_SERVER")"
+  local f
+  for f in "$@"; do
+    row+=",$(csv_escape "$f")"
+  done
+  printf '%s\n' "$row" >> "$OUTPUT_FILE"
 }
 
 MESH_INSTALLED="false"
