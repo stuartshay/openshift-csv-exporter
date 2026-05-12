@@ -47,6 +47,27 @@ write_row() {
   printf '%s\n' "$row" >> "$OUTPUT_FILE"
 }
 
+# Safely capture JSON output from an `oc` command.
+#
+# Replaces the pattern `VAR=$(oc ... 2>/dev/null | tr -d '\r' || echo '{"items":[]}')`
+# which, under `set -o pipefail`, concatenates BOTH the pipeline output AND the
+# fallback when `oc` emits data but exits non-zero (observed with oc.exe on
+# Windows / Git Bash). That produced JSON like `{"items":[]}\n{"items":[]}`,
+# which made `jq '.items | length'` print `0\n0`, then `[ "$COUNT" -gt 0 ]`
+# failed with `[: 0 0: integer expected`.
+#
+# This helper captures stdout, swallows the exit code, validates the result is
+# parseable JSON, and otherwise returns an empty `{"items":[]}` placeholder.
+oc_json() {
+  local out
+  out=$(oc "$@" 2>/dev/null | tr -d '\r' || true)
+  if [ -z "$out" ] || ! printf '%s' "$out" | jq empty >/dev/null 2>&1; then
+    printf '{"items":[]}'
+  else
+    printf '%s' "$out"
+  fi
+}
+
 MESH_INSTALLED="false"
 EGRESS_FIREWALL_COUNT=0
 EXPOSED_SVC_COUNT=0
@@ -62,7 +83,7 @@ BANP_DENY_ALL="false"
 ###############################################################################
 echo "[$(date +%H:%M:%S)] [$LABEL] Fetching cluster network configuration..."
 
-NET_CONFIG=$(oc get network.config.openshift.io cluster -o json 2>/dev/null | tr -d '\r' || echo '{}')
+NET_CONFIG=$(oc_json get network.config.openshift.io cluster -o json)
 NET_TYPE=$(echo "$NET_CONFIG" | jq -r '.spec.networkType // ""')
 CLUSTER_CIDRS=$(echo "$NET_CONFIG" | jq -r '[.spec.clusterNetwork[]? | .cidr] | join(";") // ""')
 CLUSTER_HOST_PREFIXES=$(echo "$NET_CONFIG" | jq -r '[.spec.clusterNetwork[]? | .hostPrefix | tostring] | join(";") // ""')
@@ -82,7 +103,7 @@ fi
 
 # Network operator
 echo "[$(date +%H:%M:%S)] [$LABEL] Fetching network operator configuration..."
-NET_OPERATOR=$(oc get network.operator.openshift.io cluster -o json 2>/dev/null | tr -d '\r' || echo '{}')
+NET_OPERATOR=$(oc_json get network.operator.openshift.io cluster -o json)
 DEFAULT_NET_TYPE=$(echo "$NET_OPERATOR" | jq -r '.spec.defaultNetwork.type // ""')
 ADDITIONAL_NETS=$(echo "$NET_OPERATOR" | jq '[.spec.additionalNetworks[]?] | length')
 OPERATOR_CONDITIONS=$(echo "$NET_OPERATOR" | jq -r '[.status.conditions[]? | select(.status=="True") | .type] | join(";") // ""')
@@ -118,7 +139,7 @@ fi
 
 NAD_COUNT=0
 if [ "$NAD_CRD" = "true" ]; then
-  NAD_JSON=$(oc get network-attachment-definitions.k8s.cni.cncf.io -A -o json 2>/dev/null | tr -d '\r' || echo '{"items":[]}')
+  NAD_JSON=$(oc_json get network-attachment-definitions.k8s.cni.cncf.io -A -o json)
   NAD_COUNT=$(echo "$NAD_JSON" | jq '.items | length')
   echo "[$(date +%H:%M:%S)] [$LABEL] Found $NAD_COUNT NetworkAttachmentDefinition(s)"
 
@@ -166,7 +187,7 @@ fi
 
 if [ "$EGRESS_FW_CRD" = "true" ]; then
   echo "[$(date +%H:%M:%S)] [$LABEL] Fetching EgressFirewalls (OVN-Kubernetes)..."
-  EFW_JSON=$(oc get egressfirewalls.k8s.ovn.org -A -o json 2>/dev/null | tr -d '\r' || echo '{"items":[]}')
+  EFW_JSON=$(oc_json get egressfirewalls.k8s.ovn.org -A -o json)
   EFW_COUNT=$(echo "$EFW_JSON" | jq '.items | length')
   EGRESS_FIREWALL_COUNT=$EFW_COUNT
   echo "[$(date +%H:%M:%S)] [$LABEL] Found $EFW_COUNT EgressFirewall(s)"
@@ -197,7 +218,7 @@ fi
 
 if [ "$EGRESS_NP_CRD" = "true" ]; then
   echo "[$(date +%H:%M:%S)] [$LABEL] Fetching EgressNetworkPolicies (OpenShift SDN)..."
-  ENP_JSON=$(oc get egressnetworkpolicies.network.openshift.io -A -o json 2>/dev/null | tr -d '\r' || echo '{"items":[]}')
+  ENP_JSON=$(oc_json get egressnetworkpolicies.network.openshift.io -A -o json)
   ENP_COUNT=$(echo "$ENP_JSON" | jq '.items | length')
   echo "[$(date +%H:%M:%S)] [$LABEL] Found $ENP_COUNT EgressNetworkPolicy(ies)"
 
@@ -237,7 +258,7 @@ fi
 
 if [ "$ANP_CRD" = "true" ]; then
   echo "[$(date +%H:%M:%S)] [$LABEL] Fetching AdminNetworkPolicies..."
-  ANP_JSON=$(oc get adminnetworkpolicies.policy.networking.k8s.io -o json 2>/dev/null | tr -d '\r' || echo '{"items":[]}')
+  ANP_JSON=$(oc_json get adminnetworkpolicies.policy.networking.k8s.io -o json)
   ANP_COUNT=$(echo "$ANP_JSON" | jq '.items | length')
   echo "[$(date +%H:%M:%S)] [$LABEL] Found $ANP_COUNT AdminNetworkPolicy(ies)"
 
@@ -277,7 +298,7 @@ fi
 
 if [ "$BANP_CRD" = "true" ]; then
   echo "[$(date +%H:%M:%S)] [$LABEL] Fetching BaselineAdminNetworkPolicies..."
-  BANP_JSON=$(oc get baselineadminnetworkpolicies.policy.networking.k8s.io -o json 2>/dev/null | tr -d '\r' || echo '{"items":[]}')
+  BANP_JSON=$(oc_json get baselineadminnetworkpolicies.policy.networking.k8s.io -o json)
   BANP_COUNT=$(echo "$BANP_JSON" | jq '.items | length')
   echo "[$(date +%H:%M:%S)] [$LABEL] Found $BANP_COUNT BaselineAdminNetworkPolicy(ies)"
 
@@ -336,7 +357,7 @@ echo "[$(date +%H:%M:%S)] [$LABEL] Default-deny posture check done."
 ###############################################################################
 echo "[$(date +%H:%M:%S)] [$LABEL] Fetching exposed services (NodePort + LoadBalancer)..."
 
-SVC_JSON=$(oc get services -A -o json 2>/dev/null | tr -d '\r' || echo '{"items":[]}')
+SVC_JSON=$(oc_json get services -A -o json)
 
 # NodePort services
 NODEPORT_JSON=$(echo "$SVC_JSON" | jq '{"items": [.items[] | select(.spec.type == "NodePort")]}')
@@ -387,7 +408,7 @@ echo "[$(date +%H:%M:%S)] [$LABEL] Exposed services section done."
 ###############################################################################
 echo "[$(date +%H:%M:%S)] [$LABEL] Fetching IngressControllers..."
 
-IC_JSON=$(oc get ingresscontrollers -n openshift-ingress-operator -o json 2>/dev/null | tr -d '\r' || echo '{"items":[]}')
+IC_JSON=$(oc_json get ingresscontrollers -n openshift-ingress-operator -o json)
 IC_COUNT=$(echo "$IC_JSON" | jq '.items | length')
 echo "[$(date +%H:%M:%S)] [$LABEL] Found $IC_COUNT IngressController(s)"
 
@@ -420,7 +441,7 @@ echo "[$(date +%H:%M:%S)] [$LABEL] IngressControllers done."
 ###############################################################################
 echo "[$(date +%H:%M:%S)] [$LABEL] Fetching Route TLS summary..."
 
-ROUTES_JSON=$(oc get routes -A -o json 2>/dev/null | tr -d '\r' || echo '{"items":[]}')
+ROUTES_JSON=$(oc_json get routes -A -o json)
 TOTAL_ROUTES=$(echo "$ROUTES_JSON" | jq '.items | length')
 echo "[$(date +%H:%M:%S)] [$LABEL] Found $TOTAL_ROUTES route(s)"
 
@@ -477,7 +498,7 @@ fi
 
 if [ "$GATEWAY_CRD" = "true" ]; then
   echo "[$(date +%H:%M:%S)] [$LABEL] Fetching Gateways..."
-  GW_JSON=$(oc get gateways.gateway.networking.k8s.io -A -o json 2>/dev/null | tr -d '\r' || echo '{"items":[]}')
+  GW_JSON=$(oc_json get gateways.gateway.networking.k8s.io -A -o json)
   GW_COUNT=$(echo "$GW_JSON" | jq '.items | length')
   echo "[$(date +%H:%M:%S)] [$LABEL] Found $GW_COUNT Gateway(s)"
 
@@ -505,7 +526,7 @@ if [ "$GATEWAY_CRD" = "true" ]; then
 
   if [ "$HTTPROUTE_CRD" = "true" ]; then
     echo "[$(date +%H:%M:%S)] [$LABEL] Fetching HTTPRoutes..."
-    HR_JSON=$(oc get httproutes.gateway.networking.k8s.io -A -o json 2>/dev/null | tr -d '\r' || echo '{"items":[]}')
+    HR_JSON=$(oc_json get httproutes.gateway.networking.k8s.io -A -o json)
     HR_COUNT=$(echo "$HR_JSON" | jq '.items | length')
     echo "[$(date +%H:%M:%S)] [$LABEL] Found $HR_COUNT HTTPRoute(s)"
 
@@ -532,7 +553,7 @@ fi
 SMCP_COUNT=0
 if [ "$SMCP_CRD" = "true" ]; then
   echo "[$(date +%H:%M:%S)] [$LABEL] Fetching ServiceMeshControlPlanes..."
-  SMCP_JSON=$(oc get servicemeshcontrolplanes.maistra.io -A -o json 2>/dev/null | tr -d '\r' || echo '{"items":[]}')
+  SMCP_JSON=$(oc_json get servicemeshcontrolplanes.maistra.io -A -o json)
   SMCP_COUNT=$(echo "$SMCP_JSON" | jq '.items | length')
   echo "[$(date +%H:%M:%S)] [$LABEL] Found $SMCP_COUNT ServiceMeshControlPlane(s)"
 
@@ -567,7 +588,7 @@ fi
 SMMR_MEMBER_COUNT=0
 if [ "$SMMR_CRD" = "true" ]; then
   echo "[$(date +%H:%M:%S)] [$LABEL] Fetching ServiceMeshMemberRolls..."
-  SMMR_JSON=$(oc get servicemeshmemberrolls.maistra.io -A -o json 2>/dev/null | tr -d '\r' || echo '{"items":[]}')
+  SMMR_JSON=$(oc_json get servicemeshmemberrolls.maistra.io -A -o json)
   SMMR_COUNT=$(echo "$SMMR_JSON" | jq '.items | length')
 
   if [ "$SMMR_COUNT" -gt 0 ]; then
@@ -595,7 +616,7 @@ fi
 PA_STRICT_COUNT=0
 if [ "$PA_CRD" = "true" ]; then
   echo "[$(date +%H:%M:%S)] [$LABEL] Fetching PeerAuthentications..."
-  PA_JSON=$(oc get peerauthentications.security.istio.io -A -o json 2>/dev/null | tr -d '\r' || echo '{"items":[]}')
+  PA_JSON=$(oc_json get peerauthentications.security.istio.io -A -o json)
   PA_COUNT=$(echo "$PA_JSON" | jq '.items | length')
   echo "[$(date +%H:%M:%S)] [$LABEL] Found $PA_COUNT PeerAuthentication(s)"
 
@@ -626,7 +647,7 @@ fi
 
 if [ "$DR_CRD" = "true" ]; then
   echo "[$(date +%H:%M:%S)] [$LABEL] Fetching DestinationRules..."
-  DR_JSON=$(oc get destinationrules.networking.istio.io -A -o json 2>/dev/null | tr -d '\r' || echo '{"items":[]}')
+  DR_JSON=$(oc_json get destinationrules.networking.istio.io -A -o json)
   DR_COUNT=$(echo "$DR_JSON" | jq '.items | length')
   echo "[$(date +%H:%M:%S)] [$LABEL] Found $DR_COUNT DestinationRule(s)"
 
@@ -645,7 +666,7 @@ fi
 
 # ── Sidecar injection detection (namespace labels) ──────────────────────────
 echo "[$(date +%H:%M:%S)] [$LABEL] Checking sidecar injection labels on namespaces..."
-NS_JSON=$(oc get namespaces -o json 2>/dev/null | tr -d '\r' || echo '{"items":[]}')
+NS_JSON=$(oc_json get namespaces -o json)
 
 INJECT_ENABLED=$(echo "$NS_JSON" | jq '[.items[] | select(.metadata.labels["istio-injection"] == "enabled")] | length')
 INJECT_DISABLED=$(echo "$NS_JSON" | jq '[.items[] | select(.metadata.labels["istio-injection"] == "disabled")] | length')
@@ -665,7 +686,7 @@ echo "[$(date +%H:%M:%S)] [$LABEL] Checking Kiali and Jaeger..."
 KIALI_CRD="false"
 if oc get crd kialis.kiali.io > /dev/null 2>&1; then
   KIALI_CRD="true"
-  KIALI_JSON=$(oc get kialis.kiali.io -A -o json 2>/dev/null | tr -d '\r' || echo '{"items":[]}')
+  KIALI_JSON=$(oc_json get kialis.kiali.io -A -o json)
   KIALI_COUNT=$(echo "$KIALI_JSON" | jq '.items | length')
   write_row "mesh_observability" "Kiali" "instances:${KIALI_COUNT}" "" "crd:true" "" "" ""
 else
@@ -675,7 +696,7 @@ fi
 JAEGER_CRD="false"
 if oc get crd jaegers.jaegertracing.io > /dev/null 2>&1; then
   JAEGER_CRD="true"
-  JAEGER_JSON=$(oc get jaegers.jaegertracing.io -A -o json 2>/dev/null | tr -d '\r' || echo '{"items":[]}')
+  JAEGER_JSON=$(oc_json get jaegers.jaegertracing.io -A -o json)
   JAEGER_COUNT=$(echo "$JAEGER_JSON" | jq '.items | length')
   write_row "mesh_observability" "Jaeger" "instances:${JAEGER_COUNT}" "" "crd:true" "" "" ""
 else
