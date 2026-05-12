@@ -92,27 +92,32 @@ echo "[$(date +%H:%M:%S)] [$LABEL] Processing $VWC_COUNT validating webhooks..."
 
 # Single jq pass emitting TSV avoids spawning multiple jq.exe processes per
 # row, which triggers the `wargc == argc` assertion on jq for Windows under
-# Git Bash when used inside nested while-read loops.
-# shellcheck disable=SC2016
-WEBHOOK_JQ='
-  .items[] as $cfg | $cfg.webhooks[]? as $w |
-  [
-    $cfg.metadata.name,
-    ($w.name // ""),
-    ($w.failurePolicy // "Fail"),
-    ($w.timeoutSeconds // 30 | tostring),
-    ($w.sideEffects // "Unknown"),
-    ([$w.rules[]?.scope] | unique | join(";")),
-    ([$w.rules[]?.resources[]?] | unique | join(";")),
-    (
-      ($w.namespaceSelector // {}) as $ns |
-      if (($ns.matchLabels // {}) | length) == 0
-        and (($ns.matchExpressions // []) | length) == 0
-      then "" else ($ns | tostring) end
-    )
-  ] | @tsv'
+# Git Bash when used inside nested while-read loops. The program is loaded
+# from a temp file via `jq -f` because passing a multi-line program string
+# through argv hits the same Windows-only MSYS arg-conversion assertion
+# (src/main.c:256) when stdin is non-trivial.
+WEBHOOK_JQ_FILE="$(mktemp)"
+trap 'rm -f "$WEBHOOK_JQ_FILE"' EXIT
+cat >"$WEBHOOK_JQ_FILE" <<'JQ'
+.items[] as $cfg | $cfg.webhooks[]? as $w |
+[
+  $cfg.metadata.name,
+  ($w.name // ""),
+  ($w.failurePolicy // "Fail"),
+  ($w.timeoutSeconds // 30 | tostring),
+  ($w.sideEffects // "Unknown"),
+  ([$w.rules[]?.scope] | unique | join(";")),
+  ([$w.rules[]?.resources[]?] | unique | join(";")),
+  (
+    ($w.namespaceSelector // {}) as $ns |
+    if (($ns.matchLabels // {}) | length) == 0
+      and (($ns.matchExpressions // []) | length) == 0
+    then "" else ($ns | tostring) end
+  )
+] | @tsv
+JQ
 
-echo "$VWC" | jq -r "$WEBHOOK_JQ" | while IFS=$'\t' read -r CFG WNAME FAIL TIMEOUT SIDE SCOPE RES NS_SEL; do
+echo "$VWC" | jq -rf "$WEBHOOK_JQ_FILE" | while IFS=$'\t' read -r CFG WNAME FAIL TIMEOUT SIDE SCOPE RES NS_SEL; do
   [ -z "$CFG" ] && continue
   write_row "validating_webhook" "${CFG}/${WNAME}" "" "$FAIL" "$TIMEOUT" "$SIDE" "$SCOPE" "$RES" "$NS_SEL"
 done
@@ -123,7 +128,7 @@ MWC=$(oc get mutatingwebhookconfigurations -o json 2>/dev/null || echo '{"items"
 MWC_COUNT=$(echo "$MWC" | jq '[.items[].webhooks[]?] | length')
 echo "[$(date +%H:%M:%S)] [$LABEL] Processing $MWC_COUNT mutating webhooks..."
 
-echo "$MWC" | jq -r "$WEBHOOK_JQ" | while IFS=$'\t' read -r CFG WNAME FAIL TIMEOUT SIDE SCOPE RES NS_SEL; do
+echo "$MWC" | jq -rf "$WEBHOOK_JQ_FILE" | while IFS=$'\t' read -r CFG WNAME FAIL TIMEOUT SIDE SCOPE RES NS_SEL; do
   [ -z "$CFG" ] && continue
   write_row "mutating_webhook" "${CFG}/${WNAME}" "" "$FAIL" "$TIMEOUT" "$SIDE" "$SCOPE" "$RES" "$NS_SEL"
 done

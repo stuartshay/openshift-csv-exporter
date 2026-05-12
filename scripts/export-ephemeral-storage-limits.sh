@@ -27,87 +27,80 @@ OUTPUT_FILE="$OUTPUT_DIR/ephemeral-storage-limits-${CLUSTER_NAME_SAFE}-$TIMESTAM
 echo "cluster_name,cluster_context,cluster_server,namespace,is_system_namespace,has_lr_default_request,has_lr_default_limit,has_lr_max,lr_default_request,lr_default_limit,lr_max,has_quota_request,has_quota_limit,quota_request_hard,quota_limit_hard,emptydir_pods_total,emptydir_pods_without_sizelimit" > "$OUTPUT_FILE"
 
 echo "[$(date +%H:%M:%S)] [$LABEL] Fetching namespaces, limitranges, resourcequotas, pods..."
-NS_JSON=$(oc get ns -o json 2>/dev/null || echo '{"items":[]}')
-LR_JSON=$(oc get limitranges -A -o json 2>/dev/null || echo '{"items":[]}')
-RQ_JSON=$(oc get resourcequotas -A -o json 2>/dev/null || echo '{"items":[]}')
-POD_JSON=$(oc get pods -A -o json 2>/dev/null || echo '{"items":[]}')
 
-TOTAL=$(echo "$NS_JSON" | jq '.items | length')
-echo "[$(date +%H:%M:%S)] [$LABEL] Processing $TOTAL namespaces..."
+# Stage all JSON to temp files. Pods JSON on large clusters can exceed argv
+# size limits (and shell-variable practical limits), so we never assign it to
+# a shell variable — we project it down with jq while streaming from `oc`
+# straight to disk, keeping only the fields this report needs.
+TMP_DIR="$(mktemp -d)"
+trap 'rm -rf "$TMP_DIR"' EXIT
+NS_FILE="$TMP_DIR/ns.json"
+LR_FILE="$TMP_DIR/lr.json"
+RQ_FILE="$TMP_DIR/rq.json"
+POD_FILE="$TMP_DIR/pods.json"
 
-echo "$NS_JSON" | jq -c '.items[]' | while IFS= read -r ns_item; do
-  NS=$(echo "$ns_item" | jq -r '.metadata.name // ""')
-  IS_SYS="false"
-  if echo "$NS" | grep -Eq '^(openshift|kube)' || [ "$NS" = "default" ]; then
-    IS_SYS="true"
-  fi
+oc get ns             -o json 2>/dev/null > "$NS_FILE" || echo '{"items":[]}' > "$NS_FILE"
+oc get limitranges -A -o json 2>/dev/null > "$LR_FILE" || echo '{"items":[]}' > "$LR_FILE"
+oc get resourcequotas -A -o json 2>/dev/null > "$RQ_FILE" || echo '{"items":[]}' > "$RQ_FILE"
 
-  LR_DEF_REQ=$(echo "$LR_JSON" | jq -r --arg ns "$NS" '
-    [.items[] | select(.metadata.namespace == $ns) | .spec.limits[]? |
-      select(.type == "Container" or .type == "Pod") |
-      .defaultRequest["ephemeral-storage"] // empty
-    ] | first // ""')
-  LR_DEF_LIM=$(echo "$LR_JSON" | jq -r --arg ns "$NS" '
-    [.items[] | select(.metadata.namespace == $ns) | .spec.limits[]? |
-      select(.type == "Container" or .type == "Pod") |
-      .default["ephemeral-storage"] // empty
-    ] | first // ""')
-  LR_MAX=$(echo "$LR_JSON" | jq -r --arg ns "$NS" '
-    [.items[] | select(.metadata.namespace == $ns) | .spec.limits[]? |
-      .max["ephemeral-storage"] // empty
-    ] | first // ""')
+# Project pods to just (namespace, emptyDir sizeLimit per volume). This drops
+# 95%+ of the payload before any further processing.
+if ! oc get pods -A -o json 2>/dev/null \
+    | jq -c '{items: [.items[] | {ns: .metadata.namespace, eds: [(.spec.volumes // [])[] | select(.emptyDir != null) | (.emptyDir.sizeLimit // "")]}]}' \
+        > "$POD_FILE" 2>/dev/null; then
+  echo -e "${RED}[$LABEL] WARNING: failed to fetch/project pods — emptydir counts will be 0${NC}"
+  echo '{"items":[]}' > "$POD_FILE"
+fi
 
-  HAS_LR_DEF_REQ=$([ -n "$LR_DEF_REQ" ] && echo "true" || echo "false")
-  HAS_LR_DEF_LIM=$([ -n "$LR_DEF_LIM" ] && echo "true" || echo "false")
-  HAS_LR_MAX=$([ -n "$LR_MAX" ] && echo "true" || echo "false")
+TOTAL=$(jq '.items | length' "$NS_FILE")
+echo "[$(date +%H:%M:%S)] [$LABEL] Processing $TOTAL namespaces (single jq pass)..."
 
-  Q_REQ=$(echo "$RQ_JSON" | jq -r --arg ns "$NS" '
-    [.items[] | select(.metadata.namespace == $ns) |
-      .spec.hard["requests.ephemeral-storage"] // empty
-    ] | first // ""')
-  Q_LIM=$(echo "$RQ_JSON" | jq -r --arg ns "$NS" '
-    [.items[] | select(.metadata.namespace == $ns) |
-      .spec.hard["limits.ephemeral-storage"] // empty
-    ] | first // ""')
-  HAS_Q_REQ=$([ -n "$Q_REQ" ] && echo "true" || echo "false")
-  HAS_Q_LIM=$([ -n "$Q_LIM" ] && echo "true" || echo "false")
+# Build per-namespace indexes once and emit all CSV rows in a single jq
+# invocation. This avoids the previous O(N_namespaces × N_pods) cost of
+# re-filtering pod JSON for every namespace, which is the dominant slowdown
+# on clusters with >1000 namespaces.
+JQ_PROGRAM_FILE="$TMP_DIR/program.jq"
+cat >"$JQ_PROGRAM_FILE" <<'JQ'
+  ($lr[0].items   | group_by(.metadata.namespace) | map({key: .[0].metadata.namespace, value: .}) | from_entries) as $lr_by_ns |
+  ($rq[0].items   | group_by(.metadata.namespace) | map({key: .[0].metadata.namespace, value: .}) | from_entries) as $rq_by_ns |
+  ($pods[0].items | group_by(.ns)                 | map({key: .[0].ns,                 value: .}) | from_entries) as $pod_by_ns |
+  .items[] |
+  .metadata.name as $ns |
+  ((($ns | test("^(openshift|kube)")) or $ns == "default") | tostring) as $is_sys |
+  (($lr_by_ns[$ns]  // [])) as $lrs |
+  (($rq_by_ns[$ns]  // [])) as $rqs |
+  (($pod_by_ns[$ns] // [])) as $pds |
+  ( [ $lrs[].spec.limits[]? | select(.type == "Container" or .type == "Pod") | .defaultRequest["ephemeral-storage"] // empty ] | (.[0] // "") ) as $lr_def_req |
+  ( [ $lrs[].spec.limits[]? | select(.type == "Container" or .type == "Pod") | .default["ephemeral-storage"] // empty ]        | (.[0] // "") ) as $lr_def_lim |
+  ( [ $lrs[].spec.limits[]? | .max["ephemeral-storage"] // empty ]                                                              | (.[0] // "") ) as $lr_max |
+  ( [ $rqs[].spec.hard["requests.ephemeral-storage"] // empty ] | (.[0] // "") ) as $q_req |
+  ( [ $rqs[].spec.hard["limits.ephemeral-storage"]   // empty ] | (.[0] // "") ) as $q_lim |
+  ( [ $pds[] | select((.eds | length) > 0) ] | length ) as $empty_total |
+  ( [ $pds[] | select(any(.eds[]?; . == "")) ] | length ) as $empty_no_size |
+  [
+    $cluster_name, $cluster_context, $cluster_server,
+    $ns, $is_sys,
+    (($lr_def_req | length > 0) | tostring),
+    (($lr_def_lim | length > 0) | tostring),
+    (($lr_max     | length > 0) | tostring),
+    $lr_def_req, $lr_def_lim, $lr_max,
+    (($q_req | length > 0) | tostring),
+    (($q_lim | length > 0) | tostring),
+    $q_req, $q_lim,
+    ($empty_total   | tostring),
+    ($empty_no_size | tostring)
+  ] | @csv
+JQ
 
-  EMPTY_TOTAL=$(echo "$POD_JSON" | jq --arg ns "$NS" '
-    [.items[] | select(.metadata.namespace == $ns) |
-      select(.spec.volumes // [] | map(.emptyDir) | map(select(. != null)) | length > 0)
-    ] | length')
-  EMPTY_NO_SIZE=$(echo "$POD_JSON" | jq --arg ns "$NS" '
-    [.items[] | select(.metadata.namespace == $ns) |
-      select(.spec.volumes // [] |
-        map(select(.emptyDir != null and (.emptyDir.sizeLimit // "") == "")) |
-        length > 0)
-    ] | length')
-
-  jq -nr \
-    --arg cluster_name "$CLUSTER_NAME" \
-    --arg cluster_context "$CLUSTER_CONTEXT" \
-    --arg cluster_server "$CLUSTER_SERVER" \
-    --arg ns "$NS" \
-    --arg is_sys "$IS_SYS" \
-    --arg has_lr_def_req "$HAS_LR_DEF_REQ" \
-    --arg has_lr_def_lim "$HAS_LR_DEF_LIM" \
-    --arg has_lr_max "$HAS_LR_MAX" \
-    --arg lr_def_req "$LR_DEF_REQ" \
-    --arg lr_def_lim "$LR_DEF_LIM" \
-    --arg lr_max "$LR_MAX" \
-    --arg has_q_req "$HAS_Q_REQ" \
-    --arg has_q_lim "$HAS_Q_LIM" \
-    --arg q_req "$Q_REQ" \
-    --arg q_lim "$Q_LIM" \
-    --arg empty_total "$EMPTY_TOTAL" \
-    --arg empty_no_size "$EMPTY_NO_SIZE" '
-    [$cluster_name,$cluster_context,$cluster_server,$ns,$is_sys,
-     $has_lr_def_req,$has_lr_def_lim,$has_lr_max,
-     $lr_def_req,$lr_def_lim,$lr_max,
-     $has_q_req,$has_q_lim,$q_req,$q_lim,
-     $empty_total,$empty_no_size] | @csv
-  ' >> "$OUTPUT_FILE"
-done
+jq -rf "$JQ_PROGRAM_FILE" \
+  --arg cluster_name    "$CLUSTER_NAME" \
+  --arg cluster_context "$CLUSTER_CONTEXT" \
+  --arg cluster_server  "$CLUSTER_SERVER" \
+  --slurpfile lr   "$LR_FILE" \
+  --slurpfile rq   "$RQ_FILE" \
+  --slurpfile pods "$POD_FILE" \
+  "$NS_FILE" \
+  >> "$OUTPUT_FILE"
 
 ELAPSED=$(( SECONDS - SCRIPT_START_SECONDS ))
 echo "[$(date +%H:%M:%S)] [$LABEL] Completed at $(date) — total time: ${ELAPSED}s"
