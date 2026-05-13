@@ -142,6 +142,7 @@ def idx($arr):
 JQ
 
 ITER_START=$SECONDS
+PROGRESS_EVERY=50
 jq -rf "$JQ_FILE" \
   --slurpfile netpol "$NETPOL_FILE" \
   --slurpfile rq "$RQ_FILE" \
@@ -150,9 +151,17 @@ jq -rf "$JQ_FILE" \
   --slurpfile sa "$SA_FILE" \
   "$NS_FILE" \
 | {
+    i=0
     while IFS=$'\t' read -r NS IS_SYS HAS_DENY NETPOL_COUNT HAS_RQ HAS_LR HAS_OWNER RB_COUNT SA_COUNT; do
       write_row "$NS" "$IS_SYS" "$HAS_DENY" "$NETPOL_COUNT" "$HAS_RQ" "$HAS_LR" "$HAS_OWNER" "$RB_COUNT" "$SA_COUNT"
+      i=$((i + 1))
+      if (( i % PROGRESS_EVERY == 0 )); then
+        printf '[%s] [%s]   Processed %d/%d namespaces (last: %s)\n' \
+          "$(date +%H:%M:%S)" "$LABEL" "$i" "$TOTAL" "$NS" >&2
+      fi
     done
+    printf '[%s] [%s]   Processed %d/%d namespaces (final)\n' \
+      "$(date +%H:%M:%S)" "$LABEL" "$i" "$TOTAL" >&2
   } >> "$OUTPUT_FILE"
 
 echo "[$(date +%H:%M:%S)] [$LABEL] Namespace iteration done in $(( SECONDS - ITER_START ))s."
