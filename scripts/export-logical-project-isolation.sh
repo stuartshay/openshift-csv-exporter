@@ -28,18 +28,19 @@ echo "cluster_name,cluster_context,cluster_server,namespace,is_system_namespace,
 
 # Pure-bash CSV writer — avoids spawning jq per row, which trips the jq 1.6
 # Windows `wargc == argc` assertion when --arg values include unusual chars.
-csv_escape() {
-  local v="${1-}"
-  printf '"%s"' "${v//\"/\"\"}"
-}
+# Uses only parameter expansion (no command substitution) so each row is
+# fork-free; on large clusters this is ~100x faster than calling a helper
+# that wraps each field in $(...).
 write_row() {
-  local row
-  row="$(csv_escape "$CLUSTER_NAME"),$(csv_escape "$CLUSTER_CONTEXT"),$(csv_escape "$CLUSTER_SERVER")"
-  local f
+  local row f esc
+  esc="${CLUSTER_NAME//\"/\"\"}";    row="\"$esc\""
+  esc="${CLUSTER_CONTEXT//\"/\"\"}"; row+=",\"$esc\""
+  esc="${CLUSTER_SERVER//\"/\"\"}";  row+=",\"$esc\""
   for f in "$@"; do
-    row+=",$(csv_escape "$f")"
+    esc="${f//\"/\"\"}"
+    row+=",\"$esc\""
   done
-  printf '%s\n' "$row" >> "$OUTPUT_FILE"
+  printf '%s\n' "$row"
 }
 
 echo "[$(date +%H:%M:%S)] [$LABEL] Fetching namespaces, networkpolicies, resourcequotas, limitranges, rolebindings, serviceaccounts (in parallel)..."
@@ -140,6 +141,7 @@ def idx($arr):
 | @tsv
 JQ
 
+ITER_START=$SECONDS
 jq -rf "$JQ_FILE" \
   --slurpfile netpol "$NETPOL_FILE" \
   --slurpfile rq "$RQ_FILE" \
@@ -147,11 +149,13 @@ jq -rf "$JQ_FILE" \
   --slurpfile rb "$RB_FILE" \
   --slurpfile sa "$SA_FILE" \
   "$NS_FILE" \
-| while IFS=$'\t' read -r NS IS_SYS HAS_DENY NETPOL_COUNT HAS_RQ HAS_LR HAS_OWNER RB_COUNT SA_COUNT; do
-    write_row "$NS" "$IS_SYS" "$HAS_DENY" "$NETPOL_COUNT" "$HAS_RQ" "$HAS_LR" "$HAS_OWNER" "$RB_COUNT" "$SA_COUNT"
-  done
+| {
+    while IFS=$'\t' read -r NS IS_SYS HAS_DENY NETPOL_COUNT HAS_RQ HAS_LR HAS_OWNER RB_COUNT SA_COUNT; do
+      write_row "$NS" "$IS_SYS" "$HAS_DENY" "$NETPOL_COUNT" "$HAS_RQ" "$HAS_LR" "$HAS_OWNER" "$RB_COUNT" "$SA_COUNT"
+    done
+  } >> "$OUTPUT_FILE"
 
-echo "[$(date +%H:%M:%S)] [$LABEL] Namespace iteration done."
+echo "[$(date +%H:%M:%S)] [$LABEL] Namespace iteration done in $(( SECONDS - ITER_START ))s."
 
 USER_NS=$(jq '[.items[] | select((.metadata.name // "") | test("^(openshift|kube|default$)") | not)] | length' "$NS_FILE")
 echo ""
