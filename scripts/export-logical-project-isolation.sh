@@ -42,7 +42,7 @@ write_row() {
   printf '%s\n' "$row" >> "$OUTPUT_FILE"
 }
 
-echo "[$(date +%H:%M:%S)] [$LABEL] Fetching namespaces, networkpolicies, resourcequotas, limitranges, rolebindings, serviceaccounts..."
+echo "[$(date +%H:%M:%S)] [$LABEL] Fetching namespaces, networkpolicies, resourcequotas, limitranges, rolebindings, serviceaccounts (in parallel)..."
 NS_FILE=$(mktemp)
 NETPOL_FILE=$(mktemp)
 RQ_FILE=$(mktemp)
@@ -52,12 +52,41 @@ SA_FILE=$(mktemp)
 JQ_FILE=$(mktemp)
 trap 'rm -f "$NS_FILE" "$NETPOL_FILE" "$RQ_FILE" "$LR_FILE" "$RB_FILE" "$SA_FILE" "$JQ_FILE"' EXIT
 
-oc get ns -o json                  >"$NS_FILE"     2>/dev/null || echo '{"items":[]}' >"$NS_FILE"
-oc get networkpolicies -A -o json  >"$NETPOL_FILE" 2>/dev/null || echo '{"items":[]}' >"$NETPOL_FILE"
-oc get resourcequotas -A -o json   >"$RQ_FILE"     2>/dev/null || echo '{"items":[]}' >"$RQ_FILE"
-oc get limitranges -A -o json      >"$LR_FILE"     2>/dev/null || echo '{"items":[]}' >"$LR_FILE"
-oc get rolebindings -A -o json     >"$RB_FILE"     2>/dev/null || echo '{"items":[]}' >"$RB_FILE"
-oc get serviceaccounts -A -o json  >"$SA_FILE"     2>/dev/null || echo '{"items":[]}' >"$SA_FILE"
+# Fetch all six resources in parallel. RoleBindings and ServiceAccounts use a
+# trimmed jsonpath -> JSON shape because we only need namespace+name for counts;
+# this is dramatically smaller than the full object payload on large clusters.
+FETCH_START=$SECONDS
+(
+  oc get ns -o json 2>/dev/null >"$NS_FILE" || echo '{"items":[]}' >"$NS_FILE"
+) &
+PID_NS=$!
+(
+  oc get networkpolicies -A -o json 2>/dev/null >"$NETPOL_FILE" || echo '{"items":[]}' >"$NETPOL_FILE"
+) &
+PID_NP=$!
+(
+  oc get resourcequotas -A -o json 2>/dev/null >"$RQ_FILE" || echo '{"items":[]}' >"$RQ_FILE"
+) &
+PID_RQ=$!
+(
+  oc get limitranges -A -o json 2>/dev/null >"$LR_FILE" || echo '{"items":[]}' >"$LR_FILE"
+) &
+PID_LR=$!
+(
+  oc get rolebindings -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"\t"}{.metadata.name}{"\n"}{end}' 2>/dev/null \
+    | awk -F'\t' 'BEGIN{print "{\"items\":["; sep=""} NF>=1 {gsub(/\\/,"\\\\",$1); gsub(/"/,"\\\"",$1); printf "%s{\"metadata\":{\"namespace\":\"%s\"}}", sep, $1; sep=","} END{print "]}"}' \
+    >"$RB_FILE" || echo '{"items":[]}' >"$RB_FILE"
+) &
+PID_RB=$!
+(
+  oc get serviceaccounts -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"\t"}{.metadata.name}{"\n"}{end}' 2>/dev/null \
+    | awk -F'\t' 'BEGIN{print "{\"items\":["; sep=""} NF>=1 {gsub(/\\/,"\\\\",$1); gsub(/"/,"\\\"",$1); printf "%s{\"metadata\":{\"namespace\":\"%s\"}}", sep, $1; sep=","} END{print "]}"}' \
+    >"$SA_FILE" || echo '{"items":[]}' >"$SA_FILE"
+) &
+PID_SA=$!
+
+wait "$PID_NS" "$PID_NP" "$PID_RQ" "$PID_LR" "$PID_RB" "$PID_SA"
+echo "[$(date +%H:%M:%S)] [$LABEL] Fetch complete in $(( SECONDS - FETCH_START ))s."
 
 TOTAL=$(jq '.items | length' "$NS_FILE")
 echo "[$(date +%H:%M:%S)] [$LABEL] Processing $TOTAL namespaces..."
