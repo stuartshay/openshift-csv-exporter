@@ -43,11 +43,13 @@ write_row() {
 # 1) Cluster Version — current OCP version, channel, available updates
 # =============================================================================
 echo "[patch-lifecycle] Fetching clusterversion..."
-if ! CV_JSON=$(oc get clusterversion version -o json 2>&1); then
+CV_ERR=$(mktemp)
+if ! CV_JSON=$(oc get clusterversion version -o json 2>"$CV_ERR"); then
   echo "[patch-lifecycle] WARNING: oc get clusterversion failed:" >&2
-  echo "$CV_JSON" >&2
+  cat "$CV_ERR" >&2
   CV_JSON='{}'
 fi
+rm -f "$CV_ERR"
 echo "[patch-lifecycle] Clusterversion fetched."
 
 CURRENT_VERSION=$(echo "$CV_JSON" | jq -r '.status.desired.version // ""')
@@ -105,11 +107,13 @@ echo "[patch-lifecycle] Update history done."
 # 2) ClusterOperator versions — each operator and its current version
 # =============================================================================
 echo "[patch-lifecycle] Fetching clusteroperators..."
-if ! CO_JSON=$(oc get clusteroperators -o json 2>&1); then
+CO_ERR=$(mktemp)
+if ! CO_JSON=$(oc get clusteroperators -o json 2>"$CO_ERR"); then
   echo "[patch-lifecycle] WARNING: oc get clusteroperators failed:" >&2
-  echo "$CO_JSON" >&2
+  cat "$CO_ERR" >&2
   CO_JSON='{"items":[]}'
 fi
+rm -f "$CO_ERR"
 CO_COUNT=$(echo "$CO_JSON" | jq '.items | length' | tr -d '\r')
 echo "[patch-lifecycle] Processing $CO_COUNT clusteroperators..."
 if [ "$CO_COUNT" -eq 0 ]; then
@@ -144,11 +148,13 @@ echo "[patch-lifecycle] ClusterOperators done."
 # 3) MachineConfigPool rollout status — are nodes up to date with config?
 # =============================================================================
 echo "[patch-lifecycle] Fetching machineconfigpools..."
-if ! MCP_JSON=$(oc get machineconfigpools -o json 2>&1); then
+MCP_ERR=$(mktemp)
+if ! MCP_JSON=$(oc get machineconfigpools -o json 2>"$MCP_ERR"); then
   echo "[patch-lifecycle] WARNING: oc get machineconfigpools failed:" >&2
-  echo "$MCP_JSON" >&2
+  cat "$MCP_ERR" >&2
   MCP_JSON='{"items":[]}'
 fi
+rm -f "$MCP_ERR"
 MCP_COUNT=$(echo "$MCP_JSON" | jq '.items | length' | tr -d '\r')
 echo "[patch-lifecycle] Processing $MCP_COUNT machineconfigpools..."
 if [ "$MCP_COUNT" -eq 0 ]; then
@@ -188,11 +194,13 @@ echo "[patch-lifecycle] MachineConfigPools done."
 # 4) Node OS and kubelet versions — per-node version tracking
 # =============================================================================
 echo "[patch-lifecycle] Fetching nodes..."
-if ! NODES_JSON=$(oc get nodes -o json 2>&1); then
+NODES_ERR=$(mktemp)
+if ! NODES_JSON=$(oc get nodes -o json 2>"$NODES_ERR"); then
   echo "[patch-lifecycle] WARNING: oc get nodes failed:" >&2
-  echo "$NODES_JSON" >&2
+  cat "$NODES_ERR" >&2
   NODES_JSON='{"items":[]}'
 fi
+rm -f "$NODES_ERR"
 NODE_COUNT=$(echo "$NODES_JSON" | jq '.items | length' | tr -d '\r')
 echo "[patch-lifecycle] Processing $NODE_COUNT nodes..."
 if [ "$NODE_COUNT" -eq 0 ]; then
