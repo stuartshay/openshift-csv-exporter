@@ -12,6 +12,7 @@ Submodules:
 - :mod:`notebook_helpers.grid`        — interactive ``style_table`` widget
 - :mod:`notebook_helpers.bootstrap`   — ``bootstrap`` / ``reset`` session helpers
 """
+
 from __future__ import annotations
 
 from .bootstrap import bootstrap, reset

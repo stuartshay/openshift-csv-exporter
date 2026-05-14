@@ -6,6 +6,7 @@ weren't audited. ``evaluation_summary`` renders a small badge bar above the
 grid showing the full evaluated population, the number flagged in the
 filtered grid, and the clean clusters by name.
 """
+
 from __future__ import annotations
 
 from html import escape
@@ -17,8 +18,8 @@ from .theme import FONT_FAMILY, FONT_SIZE, HEADER_BG
 
 _BADGE_BG = {
     "evaluated": "#374151",  # slate
-    "flagged": HEADER_BG,    # orange (matches grid header)
-    "clean": "#2E7D32",      # green
+    "flagged": HEADER_BG,  # orange (matches grid header)
+    "clean": "#2E7D32",  # green
 }
 
 
@@ -26,7 +27,7 @@ def _badge(label: str, count: int, kind: str) -> str:
     bg = _BADGE_BG.get(kind, "#374151")
     return (
         f'<span style="display:inline-block;padding:2px 10px;margin-right:6px;'
-        f'border-radius:10px;background:{bg};color:#fff;font-weight:600;'
+        f"border-radius:10px;background:{bg};color:#fff;font-weight:600;"
         f'font-size:{FONT_SIZE};font-family:{FONT_FAMILY};">'
         f"{escape(label)}: {count}</span>"
     )

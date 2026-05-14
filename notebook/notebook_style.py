@@ -12,6 +12,7 @@ Existing notebooks that do ``from notebook_style import bootstrap, style_table``
 continue to work unchanged. New code should import directly from
 ``notebook_helpers``.
 """
+
 from __future__ import annotations
 
 from notebook_helpers import (
