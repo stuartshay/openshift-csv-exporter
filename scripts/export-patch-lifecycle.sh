@@ -24,6 +24,21 @@ echo "[patch-lifecycle] Output file: $OUTPUT_FILE"
 
 echo "cluster_name,cluster_context,cluster_server,check_category,resource_name,current_version,desired_version,versions_match,update_channel,available_updates,update_state,age_days,details" > "$OUTPUT_FILE"
 
+# Pure-bash CSV writer — avoids spawning jq per row. Uses only parameter
+# expansion so each row is fork-free; on clusters with many nodes this is
+# dramatically faster than calling jq -rn per row.
+write_row() {
+  local row f esc
+  esc="${CLUSTER_NAME//\"/\"\"}";    row="\"$esc\""
+  esc="${CLUSTER_CONTEXT//\"/\"\"}"; row+=",\"$esc\""
+  esc="${CLUSTER_SERVER//\"/\"\"}";  row+=",\"$esc\""
+  for f in "$@"; do
+    esc="${f//\"/\"\"}"
+    row+=",\"$esc\""
+  done
+  printf '%s\n' "$row"
+}
+
 # =============================================================================
 # 1) Cluster Version — current OCP version, channel, available updates
 # =============================================================================
@@ -69,26 +84,20 @@ jq -rn \
 HIST_COUNT=$(echo "$CV_JSON" | jq '[.status.history // [] | .[]] | length' | tr -d '\r')
 echo "[patch-lifecycle] Processing $HIST_COUNT update history entries..."
 
-echo "$CV_JSON" | jq -c '.status.history // [] | .[]' | while IFS= read -r entry; do
-  HIST_VERSION=$(echo "$entry" | jq -r '.version // ""')
-  HIST_STATE=$(echo "$entry" | jq -r '.state // ""')
-  HIST_COMPLETED=$(echo "$entry" | jq -r '.completionTime // ""')
-  HIST_AGE=""
-  if [ -n "$HIST_COMPLETED" ]; then
-    HIST_EPOCH=$(date -d "$HIST_COMPLETED" +%s 2>/dev/null || echo "")
-    if [ -n "$HIST_EPOCH" ]; then
-      HIST_AGE=$(( (NOW_EPOCH - HIST_EPOCH) / 86400 ))
+echo "$CV_JSON" | jq -r '.status.history // [] |
+  .[] | [(.version // ""), (.state // ""), (.completionTime // "")] | @tsv
+' | {
+  while IFS=$'\t' read -r HIST_VERSION HIST_STATE HIST_COMPLETED; do
+    HIST_AGE=""
+    if [ -n "$HIST_COMPLETED" ]; then
+      HIST_EPOCH=$(date -d "$HIST_COMPLETED" +%s 2>/dev/null || echo "")
+      if [ -n "$HIST_EPOCH" ]; then
+        HIST_AGE=$(( (NOW_EPOCH - HIST_EPOCH) / 86400 ))
+      fi
     fi
-  fi
-
-  jq -rn \
-    --arg cn "$CLUSTER_NAME" --arg cc "$CLUSTER_CONTEXT" --arg cs "$CLUSTER_SERVER" \
-    --arg ver "$HIST_VERSION" \
-    --arg state "$HIST_STATE" \
-    --arg age "$HIST_AGE" '
-    [$cn,$cc,$cs,"update_history",$ver,$ver,"","",$state,"",$state,$age,""] | @csv
-  '
-done >> "$OUTPUT_FILE"
+    write_row "update_history" "$HIST_VERSION" "$HIST_VERSION" "" "" "$HIST_STATE" "" "$HIST_STATE" "$HIST_AGE" ""
+  done
+} >> "$OUTPUT_FILE"
 
 echo "[patch-lifecycle] Update history done."
 
@@ -190,34 +199,26 @@ if [ "$NODE_COUNT" -eq 0 ]; then
   echo "[patch-lifecycle] WARNING: 0 nodes found — possible auth or permission issue"
 fi
 
-# Pre-extract all node data in a single jq pass to avoid per-node jq calls
-echo "$NODES_JSON" | jq -c '.items[] | {
-  name: (.metadata.name // ""),
-  kubelet: (.status.nodeInfo.kubeletVersion // ""),
-  os: (.status.nodeInfo.osImage // ""),
-  kernel: (.status.nodeInfo.kernelVersion // ""),
-  runtime: (.status.nodeInfo.containerRuntimeVersion // ""),
-  currentConfig: (.metadata.annotations["machineconfiguration.openshift.io/currentConfig"] // ""),
-  desiredConfig: (.metadata.annotations["machineconfiguration.openshift.io/desiredConfig"] // ""),
-  mcState: (.metadata.annotations["machineconfiguration.openshift.io/state"] // ""),
-  roles: ([.metadata.labels // {} | to_entries[] | select(.key | startswith("node-role.kubernetes.io/")) | .key | ltrimstr("node-role.kubernetes.io/")] | join(";")),
-  created: (.metadata.creationTimestamp // "")
-}' | {
+# Single jq pass emits one TSV line per node; shell loop only handles
+# date math + CSV emit. Avoids ~11 jq invocations per node.
+NODE_LOOP_START=$SECONDS
+echo "$NODES_JSON" | jq -r '.items[] |
+  [
+    (.metadata.name // ""),
+    (.status.nodeInfo.kubeletVersion // ""),
+    (.status.nodeInfo.osImage // ""),
+    (.status.nodeInfo.kernelVersion // ""),
+    (.status.nodeInfo.containerRuntimeVersion // ""),
+    (.metadata.annotations["machineconfiguration.openshift.io/currentConfig"] // ""),
+    (.metadata.annotations["machineconfiguration.openshift.io/desiredConfig"] // ""),
+    (.metadata.annotations["machineconfiguration.openshift.io/state"] // ""),
+    ([.metadata.labels // {} | to_entries[] | select(.key | startswith("node-role.kubernetes.io/")) | .key | ltrimstr("node-role.kubernetes.io/")] | join(";")),
+    (.metadata.creationTimestamp // "")
+  ] | @tsv
+' | {
   NODE_IDX=0
-  NODE_LOOP_START=$SECONDS
-  while IFS= read -r node; do
+  while IFS=$'\t' read -r NODE_NAME KUBELET_VERSION OS_IMAGE KERNEL_VERSION CONTAINER_RUNTIME CURRENT_CONFIG DESIRED_CONFIG MC_STATE ROLES CREATED; do
     NODE_IDX=$((NODE_IDX + 1))
-    NODE_ITEM_START=$SECONDS
-    NODE_NAME=$(echo "$node" | jq -r '.name')
-    KUBELET_VERSION=$(echo "$node" | jq -r '.kubelet')
-    OS_IMAGE=$(echo "$node" | jq -r '.os')
-    KERNEL_VERSION=$(echo "$node" | jq -r '.kernel')
-    CONTAINER_RUNTIME=$(echo "$node" | jq -r '.runtime')
-    CURRENT_CONFIG=$(echo "$node" | jq -r '.currentConfig')
-    DESIRED_CONFIG=$(echo "$node" | jq -r '.desiredConfig')
-    MC_STATE=$(echo "$node" | jq -r '.mcState')
-    ROLES=$(echo "$node" | jq -r '.roles')
-    CREATED=$(echo "$node" | jq -r '.created')
 
     CONFIGS_MATCH="false"
     if [ "$CURRENT_CONFIG" = "$DESIRED_CONFIG" ] && [ -n "$CURRENT_CONFIG" ]; then
@@ -232,32 +233,18 @@ echo "$NODES_JSON" | jq -c '.items[] | {
       fi
     fi
 
-    jq -rn \
-      --arg cn "$CLUSTER_NAME" --arg cc "$CLUSTER_CONTEXT" --arg cs "$CLUSTER_SERVER" \
-      --arg name "$NODE_NAME" \
-      --arg kubelet "$KUBELET_VERSION" \
-      --arg desired "$DESIRED_CONFIG" \
-      --arg match "$CONFIGS_MATCH" \
-      --arg state "$MC_STATE" \
-      --arg age "$NODE_AGE" \
-      --arg details "os=$OS_IMAGE;kernel=$KERNEL_VERSION;runtime=$CONTAINER_RUNTIME;roles=$ROLES;current_config=$CURRENT_CONFIG;desired_config=$DESIRED_CONFIG" '
-      [$cn,$cc,$cs,"node_version",$name,$kubelet,$desired,$match,"",$state,"",$age,$details] | @csv
-    '
+    DETAILS="os=$OS_IMAGE;kernel=$KERNEL_VERSION;runtime=$CONTAINER_RUNTIME;roles=$ROLES;current_config=$CURRENT_CONFIG;desired_config=$DESIRED_CONFIG"
+    write_row "node_version" "$NODE_NAME" "$KUBELET_VERSION" "$DESIRED_CONFIG" "$CONFIGS_MATCH" "" "$MC_STATE" "" "$NODE_AGE" "$DETAILS"
 
-    NODE_ITEM_ELAPSED=$(( SECONDS - NODE_ITEM_START ))
-    NODE_LOOP_ELAPSED=$(( SECONDS - NODE_LOOP_START ))
-    if [ "$NODE_IDX" -gt 0 ]; then
-      AVG_PER_NODE=$(( NODE_LOOP_ELAPSED / NODE_IDX ))
-      REMAINING=$(( (NODE_COUNT - NODE_IDX) * AVG_PER_NODE ))
-    else
-      AVG_PER_NODE=0
-      REMAINING=0
+    if [ $((NODE_IDX % 25)) -eq 0 ] || [ "$NODE_IDX" = "$NODE_COUNT" ]; then
+      LOOP_ELAPSED=$(( SECONDS - NODE_LOOP_START ))
+      echo "[patch-lifecycle]   Processed $NODE_IDX/$NODE_COUNT nodes (last: $NODE_NAME) — elapsed: ${LOOP_ELAPSED}s" >&2
     fi
-    echo "[patch-lifecycle]   Node $NODE_IDX/$NODE_COUNT: $NODE_NAME (${NODE_ITEM_ELAPSED}s) — elapsed: ${NODE_LOOP_ELAPSED}s, avg: ${AVG_PER_NODE}s/node, ETA: ~${REMAINING}s remaining" >&2
   done
 } >> "$OUTPUT_FILE"
 
-echo "[patch-lifecycle] Nodes done — $NODE_COUNT nodes processed."
+NODE_LOOP_ELAPSED=$(( SECONDS - NODE_LOOP_START ))
+echo "[patch-lifecycle] Nodes done — $NODE_COUNT nodes processed in ${NODE_LOOP_ELAPSED}s."
 
 ELAPSED=$(( SECONDS - SCRIPT_START_SECONDS ))
 echo "[patch-lifecycle] Completed at $(date) — total time: ${ELAPSED}s"
