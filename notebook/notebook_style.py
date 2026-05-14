@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from notebook_helpers import (
     bootstrap,
+    evaluation_summary,
     format_age_years_days,
     reset,
     style_table,
@@ -26,4 +27,5 @@ __all__ = [
     "reset",
     "style_table",
     "format_age_years_days",
+    "evaluation_summary",
 ]

@@ -17,10 +17,12 @@ from __future__ import annotations
 from .bootstrap import bootstrap, reset
 from .formatters import format_age_years_days
 from .grid import style_table
+from .summary import evaluation_summary
 
 __all__ = [
     "bootstrap",
     "reset",
     "style_table",
     "format_age_years_days",
+    "evaluation_summary",
 ]
